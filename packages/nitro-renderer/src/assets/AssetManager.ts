@@ -143,7 +143,7 @@ export class AssetManager implements IAssetManager {
     private async processNitroBundle(bundle: NitroBundle): Promise<void> {
         if (!bundle) return;
 
-        let assetData: IAssetData = { type: '' };
+        let assetData: IAssetData & { name?: string } = { type: '' };
         let spritesheet: Spritesheet | undefined = undefined;
 
         for (const key in bundle.files) {
@@ -177,6 +177,12 @@ export class AssetManager implements IAssetManager {
                 continue;
             }
         }
+
+        // Converted avatar and effect bundles identify the library with `name`,
+        // while room/furniture bundles use `type`. Keep the real library name as
+        // the collection key so downloading a second figure library cannot
+        // replace the first collection under an empty string.
+        if (!assetData.type && assetData.name) assetData.type = assetData.name;
 
         this.createCollection(assetData, spritesheet);
     }

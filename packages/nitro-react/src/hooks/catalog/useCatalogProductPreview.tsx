@@ -155,7 +155,7 @@ export const useCatalogProductPreview = (
                         figureSetIds,
                     );
 
-                    addAvatarIntoRoom(figure);
+                    addAvatarIntoRoom(figure, 0, ownGender);
                 } else {
                     addFurnitureIntoRoom(product.classId, new Vector3d(90));
                 }
@@ -210,7 +210,7 @@ export const useCatalogProductPreview = (
                 addAvatarIntoRoom(product.extraParam);
                 break;
             case FurnitureTypeEnum.Effect:
-                addAvatarIntoRoom(ownFigure, product.classId);
+                addAvatarIntoRoom(ownFigure, product.classId, ownGender);
                 break;
             default:
                 resetRoomPreview(false);

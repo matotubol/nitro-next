@@ -1,4 +1,4 @@
-import { AvatarActionStateType, AvatarExpressionEnum, FurnitureUsagePolicyEnum, IObjectData, IRoom, IRoomObjectController, IVector3D, LegacyDataType, RoomEngineObjectEvent, RoomGeometryScaleType, RoomId, RoomObjectCategoryEnum, RoomObjectUserType, RoomObjectUserTypeName, RoomObjectVariableEnum, Vector3d } from "@nitrodevco/nitro-api";
+import { AvatarActionStateType, AvatarExpressionEnum, AvatarGenderType, FurnitureUsagePolicyEnum, IObjectData, IRoom, IRoomObjectController, IVector3D, LegacyDataType, RoomEngineObjectEvent, RoomGeometryScaleType, RoomId, RoomObjectCategoryEnum, RoomObjectUserType, RoomObjectUserTypeName, RoomObjectVariableEnum, Vector3d } from "@nitrodevco/nitro-api";
 import { GetRoomEngine, GetTicker, TextureUtils } from "@nitrodevco/nitro-renderer";
 import { PointData, Rectangle, Ticker } from "pixi.js";
 import { RefObject, useEffect, useRef, useState } from "react";
@@ -557,22 +557,52 @@ export const useRoomPreviewer = (
         return -1;
     };
 
-    const addAvatarIntoRoom = (figure: string, effect: number = 0) => {
+    const addAvatarIntoRoom = (figure: string, effect: number = 0, gender?: AvatarGenderType) => {
         const room = roomRef.current;
 
         if (!room || !figure) return -1;
 
-        resetRoomPreview(false);
+        let roomObject = currentObjectCategory.current === RoomObjectCategoryEnum.Unit
+            ? room.getRoomObject(PREVIEW_OBJECT_ID, RoomObjectCategoryEnum.Unit)
+            : undefined;
 
-        currentPreviewClassId.current = 1;
-        currentPreviewExtraParam.current = figure;
-        currentObjectCategory.current = RoomObjectCategoryEnum.Unit;
+        if (roomObject) {
+            room.updateRoomObjectUserFigure(PREVIEW_OBJECT_ID, figure, gender ?? '');
+            room.updateRoomObjectUser(
+                PREVIEW_OBJECT_ID,
+                PREVIEW_OBJECT_LOCATION,
+                undefined,
+                false,
+                0,
+                new Vector3d(90),
+                135,
+            );
+        }
+        else {
+            resetRoomPreview(false);
+            currentObjectCategory.current = RoomObjectCategoryEnum.Unit;
 
-        if (!room.addRoomObjectUser(PREVIEW_OBJECT_ID, PREVIEW_OBJECT_LOCATION, new Vector3d(90), 135, RoomObjectUserType.User, figure)) {
+            if (!room.addRoomObjectUser(PREVIEW_OBJECT_ID, PREVIEW_OBJECT_LOCATION, new Vector3d(90), 135, RoomObjectUserType.User, figure)) {
+                currentObjectCategory.current = RoomObjectCategoryEnum.Minimum;
+                return -1;
+            }
+
+            if (gender) room.updateRoomObjectUserFigure(PREVIEW_OBJECT_ID, figure, gender);
+
+            roomObject = room.getRoomObject(PREVIEW_OBJECT_ID, RoomObjectCategoryEnum.Unit);
+        }
+
+        if (!roomObject) {
             currentObjectCategory.current = RoomObjectCategoryEnum.Minimum;
             return -1;
         }
 
+        currentPreviewClassId.current = effect;
+        currentPreviewExtraParam.current = figure;
+        currentObjectCategory.current = RoomObjectCategoryEnum.Unit;
+
+        room.updateRoomObjectUserAction(PREVIEW_OBJECT_ID, RoomObjectVariableEnum.FigureDance, 0);
+        room.updateRoomObjectUserAction(PREVIEW_OBJECT_ID, RoomObjectVariableEnum.FigureExpression, 0);
         room.updateRoomObjectUserGesture(PREVIEW_OBJECT_ID, 1);
         room.updateRoomObjectUserEffect(PREVIEW_OBJECT_ID, effect);
         room.updateRoomObjectUserPosture(PREVIEW_OBJECT_ID, 'std');

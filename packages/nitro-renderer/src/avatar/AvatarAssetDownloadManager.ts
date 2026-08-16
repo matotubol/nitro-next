@@ -16,9 +16,11 @@ export class AvatarAssetDownloadManager {
     private _currentDownloads: AvatarAssetDownloadLibrary[] = [];
     private _libraryNames: string[] = [];
     private _isReady: boolean = false;
+    private _onAssetLibraryLoaded: ((libraryName: string) => void) | undefined;
 
-    constructor(structure: AvatarStructure) {
+    constructor(structure: AvatarStructure, onAssetLibraryLoaded?: (libraryName: string) => void) {
         this._structure = structure;
+        this._onAssetLibraryLoaded = onAssetLibraryLoaded;
     }
 
     public processFigureMap(data: IFigureMapLibrary[], assetUrl: string): void {
@@ -30,6 +32,8 @@ export class AvatarAssetDownloadManager {
             this._libraryNames.push(library.id);
 
             const downloadLibrary = new AvatarAssetDownloadLibrary(library.id, library.revision ?? 0, assetUrl, lib => this.onLibraryLoaded(lib));
+
+            if (downloadLibrary.isLoaded) this._onAssetLibraryLoaded?.(downloadLibrary.libraryName);
 
             if (!library.parts?.length) continue;
 
@@ -86,7 +90,7 @@ export class AvatarAssetDownloadManager {
                 this._figureListeners.set(figure, listeners);
             }
 
-            listeners.push(listener);
+            if (!listeners.includes(listener)) listeners.push(listener);
 
             this._incompleteFigures.set(figure, libraries);
 
@@ -173,6 +177,11 @@ export class AvatarAssetDownloadManager {
         if (!library) return;
 
         const loadedFigures: string[] = [];
+
+        // The SWF registers a library's aliases before it wakes figure listeners.
+        // Without this, the library remains marked as loaded but aliased clothing
+        // frames cannot be resolved when that figure is created again.
+        this._onAssetLibraryLoaded?.(library.libraryName);
 
         for (const [figure, libraries] of this._incompleteFigures.entries()) {
             let isReady = true;

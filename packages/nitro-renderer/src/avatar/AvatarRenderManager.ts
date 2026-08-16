@@ -24,8 +24,14 @@ export class AvatarRenderManager implements IAvatarRenderManager {
     constructor() {
         this._structure = new AvatarStructure();
         this._aliasCollection = new AssetAliasCollection();
-        this._avatarAssetDownloadManager = new AvatarAssetDownloadManager(this._structure);
-        this._effectAssetDownloadManager = new EffectAssetDownloadManager(this._structure);
+        this._avatarAssetDownloadManager = new AvatarAssetDownloadManager(
+            this._structure,
+            libraryName => this._aliasCollection.addCollection(libraryName),
+        );
+        this._effectAssetDownloadManager = new EffectAssetDownloadManager(
+            this._structure,
+            libraryName => this._aliasCollection.addCollection(libraryName),
+        );
         this._placeHolderFigure = undefined;
         this._isReady = false;
     }
@@ -37,6 +43,7 @@ export class AvatarRenderManager implements IAvatarRenderManager {
         this._structure.actionManager.updateActions(HabboAvatarActions);
         this._structure.initAnimation(HabboAvatarAnimations);
         this._structure.initFigureData(HabboAvatarFigureDataDefault);
+        this._aliasCollection.init();
     }
 
     public processFigureMap(data: IFigureMapLibrary[], assetUrl: string) {

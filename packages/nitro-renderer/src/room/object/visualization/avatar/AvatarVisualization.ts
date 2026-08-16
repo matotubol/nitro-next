@@ -117,9 +117,8 @@ export class AvatarVisualization
     public override dispose(): void {
         if (this._disposed) return;
 
+        this.resetAvatar();
         super.dispose();
-
-        if (this._avatarImage) this._avatarImage.dispose();
 
         this._shadow = undefined;
         this._disposed = true;
@@ -169,8 +168,6 @@ export class AvatarVisualization
             if (effect !== this._effect) didEffectUpdate = true;
 
             if (didScaleUpdate || !this._avatarImage || didEffectUpdate) {
-                this._avatarImage?.dispose();
-
                 this._avatarImage = this.createAvatarImage(scale, this._effect);
 
                 if (!this._avatarImage) return;
@@ -858,17 +855,27 @@ export class AvatarVisualization
     }
 
     public resetFigure(figure: string): void {
+        if (this._disposed || figure !== this._figure) return;
+
         this._forceUpdate = true;
     }
 
     public resetEffect(effect: number): void {
+        if (this._disposed || effect !== this._effect) return;
+
         this._forceUpdate = true;
     }
 
     private resetAvatar(): void {
-        for (const avatar of this._cachedAvatars.getValues()) avatar?.dispose();
+        const avatars = new Set<IAvatarImage>();
 
-        for (const avatar of this._cachedAvatarEffects.getValues()) avatar?.dispose();
+        for (const avatar of this._cachedAvatars.getValues()) if (avatar) avatars.add(avatar);
+
+        for (const avatar of this._cachedAvatarEffects.getValues()) if (avatar) avatars.add(avatar);
+
+        if (this._avatarImage) avatars.add(this._avatarImage);
+
+        for (const avatar of avatars) avatar.dispose();
 
         this._cachedAvatars.reset();
         this._cachedAvatarEffects.reset();

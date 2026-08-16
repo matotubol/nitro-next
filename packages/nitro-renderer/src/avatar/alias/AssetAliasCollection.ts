@@ -16,17 +16,24 @@ export class AssetAliasCollection {
 
     public init(): void {
         for (const collection of GetAssetManager().collections.values()) {
-            if (!collection) continue;
+            if (collection) this.addCollection(collection.name);
+        }
+    }
 
-            const aliases = collection.data && collection.data.aliases;
+    /** Register aliases from one newly downloaded avatar/effect library. */
+    public addCollection(name: string): void {
+        const aliasData = GetAssetManager().getCollection(name)?.data?.aliases as unknown;
 
-            if (!aliases) continue;
+        if (!aliasData || (typeof aliasData !== 'object')) return;
 
-            for (const alias of aliases) {
-                const assetAlias = new AssetAlias(alias);
+        const aliases = Array.isArray(aliasData) ? aliasData : Object.values(aliasData);
 
-                this._aliases.set(assetAlias.name, assetAlias);
-            }
+        for (const alias of aliases) {
+            if (!alias) continue;
+
+            const assetAlias = new AssetAlias(alias);
+
+            this._aliases.set(assetAlias.name, assetAlias);
         }
     }
 

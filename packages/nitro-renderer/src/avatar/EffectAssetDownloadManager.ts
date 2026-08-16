@@ -16,9 +16,11 @@ export class EffectAssetDownloadManager {
     private _currentDownloads: EffectAssetDownloadLibrary[] = [];
     private _libraryNames: string[] = [];
     private _isReady: boolean = false;
+    private _onAssetLibraryLoaded: ((libraryName: string) => void) | undefined;
 
-    constructor(structure: AvatarStructure) {
+    constructor(structure: AvatarStructure, onAssetLibraryLoaded?: (libraryName: string) => void) {
         this._structure = structure;
+        this._onAssetLibraryLoaded = onAssetLibraryLoaded;
     }
 
     public processEffectMap(data: IEffectMapLibrary[], assetUrl: string): void {
@@ -30,6 +32,8 @@ export class EffectAssetDownloadManager {
             this._libraryNames.push(library.lib);
 
             const downloadLibrary = new EffectAssetDownloadLibrary(library.lib, library.revision ?? 0, assetUrl, lib => this.onLibraryLoaded(lib));
+
+            if (downloadLibrary.isLoaded) this._onAssetLibraryLoaded?.(downloadLibrary.libraryName);
 
             let existing = this._effectMap.get(library.id);
 
@@ -79,7 +83,7 @@ export class EffectAssetDownloadManager {
                 this._effectListeners.set(id, listeners);
             }
 
-            listeners.push(listener);
+            if (!listeners.includes(listener)) listeners.push(listener);
 
             this._incompleteEffects.set(id, libraries);
 
@@ -151,6 +155,7 @@ export class EffectAssetDownloadManager {
 
         const loadedEffects: number[] = [];
 
+        this._onAssetLibraryLoaded?.(library.libraryName);
         this._structure.registerAnimations(library.animations);
 
         for (const [id, libraries] of this._incompleteEffects.entries()) {
