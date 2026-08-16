@@ -20,6 +20,7 @@ export class FurnitureVisualization extends RoomObjectSpriteVisualization {
     protected _furnitureLift: number = 0;
     protected _alphaMultiplier: number = 1;
     protected _alphaChanged: boolean = false;
+    protected _invisibleLayer: boolean = false;
     protected _clickUrl: string | undefined = undefined;
     protected _clickHandling: boolean = false;
 
@@ -187,6 +188,14 @@ export class FurnitureVisualization extends RoomObjectSpriteVisualization {
             this._alphaChanged = true;
         }
 
+        const invisibleLayer = model.getValue<number>(RoomObjectVariableEnum.FurnitureInvisibleLayer) > 0;
+
+        if (this._invisibleLayer !== invisibleLayer) {
+            this._invisibleLayer = invisibleLayer;
+
+            this._alphaChanged = true;
+        }
+
         this.updateModelCounter = model.updateCounter;
 
         return true;
@@ -244,6 +253,11 @@ export class FurnitureVisualization extends RoomObjectSpriteVisualization {
                     sprite.alphaTolerance = this.getLayerIgnoreMouse(scale, this._direction, layerId)
                         ? AlphaTolerance.MATCH_NOTHING
                         : AlphaTolerance.MATCH_OPAQUE_PIXELS;
+
+                    if (this._invisibleLayer && sprite.tag === 'invisible') {
+                        sprite.alpha = 0;
+                        sprite.alphaTolerance = AlphaTolerance.MATCH_NOTHING;
+                    }
 
                     relativeDepth = this.getLayerZOffset(scale, this._direction, layerId);
                     relativeDepth = relativeDepth - layerId * 0.001;

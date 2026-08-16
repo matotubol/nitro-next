@@ -4,6 +4,7 @@ import { ActionDefinition } from './ActionDefinition';
 
 export class AvatarActionManager {
     private _actions: Map<string, ActionDefinition> = new Map();
+    private _actionOffsets: Map<string, IAssetAvatarActionOffset> = new Map();
     private _defaultAction: ActionDefinition | undefined = undefined;
 
     public updateActions(data: IAssetAvatarActionData): void {
@@ -17,7 +18,9 @@ export class AvatarActionManager {
             }
         }
 
-        if (data.actionOffsets) this.parseActionOffsets(data.actionOffsets);
+        if (data.actionOffsets) for (const offset of data.actionOffsets) this._actionOffsets.set(offset.action, offset);
+
+        this.parseActionOffsets(Array.from(this._actionOffsets.values()));
     }
 
     private parseActionOffsets(data: IAssetAvatarActionOffset[]): void {
@@ -98,7 +101,7 @@ export class AvatarActionManager {
             validatedActions.push(action);
         }
 
-        validatedActions.sort(void this.sortByPrecedence);
+        validatedActions.sort((a, b) => this.sortByPrecedence(a, b));
 
         return validatedActions;
     }

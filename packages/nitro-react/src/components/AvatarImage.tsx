@@ -1,7 +1,7 @@
 import type { AvatarGenderType } from '@nitrodevco/nitro-api';
 import { AvatarScaleType, AvatarSetType } from '@nitrodevco/nitro-api';
-import { GetAvatarRenderManager } from '@nitrodevco/nitro-renderer';
-import { forwardRef, useEffect, useRef, useState } from 'react';
+import { AvatarImageView, GetAvatarRenderManager } from '@nitrodevco/nitro-renderer';
+import { forwardRef, useEffect, useState } from 'react';
 
 type AvatarImageProps = {
     figure: string;
@@ -9,38 +9,48 @@ type AvatarImageProps = {
     headOnly?: boolean;
     direction?: number;
     scale?: number;
+    crop?: 'avatar' | 'face';
 };
 
 export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
     (props, ref) => {
-        const { figure, gender, headOnly = false, direction = 0, scale = 1 } = props;
-        const [randomValue, setRandomValue] = useState<number>(-1);
+        const { figure, gender, headOnly = false, direction = 0, scale = 1, crop = 'avatar' } = props;
+        const [renderVersion, setRenderVersion] = useState<number>(0);
         const [imageData, setImageData] = useState<{
             width: number;
             height: number;
             url: string;
         }>({ width: 0, height: 0, url: '' });
-        const disposed = useRef<boolean>(false);
-
         useEffect(() => {
             if (!figure) return;
+
+            let cancelled = false;
+            let renderSettled = false;
+            let avatarDisposed = false;
+
+            const disposeAvatar = () => {
+                if (avatarDisposed) return;
+
+                avatarDisposed = true;
+                avatarImage?.dispose();
+            };
 
             const avatarImage = GetAvatarRenderManager().createAvatarImage(
                 figure,
                 AvatarScaleType.Large,
                 gender,
                 {
-                    resetFigure: (figure: string) => {
-                        if (disposed.current) return;
+                    resetFigure: (_figure: string) => {
+                        if (cancelled) return;
 
-                        setRandomValue(Math.random());
+                        setRenderVersion(version => version + 1);
                     },
                 },
                 {
-                    resetEffect: (effect: number) => {
-                        if (disposed.current) return;
+                    resetEffect: (_effect: number) => {
+                        if (cancelled) return;
 
-                        setRandomValue(Math.random());
+                        setRenderVersion(version => version + 1);
                     },
                 },
             );
@@ -51,28 +61,40 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
 
             if (headOnly) setType = AvatarSetType.Head;
 
-            avatarImage?.setDirection(setType, direction);
+            avatarImage.setDirection(AvatarSetType.Full, direction);
+            avatarImage.setDirection(AvatarSetType.Head, direction);
 
             const load = async () => {
-                const image = await avatarImage.getCroppedImageAsync(setType, false, 1);
+                try {
+                    let image;
 
-                if (!image) return;
+                    if (crop === 'face') {
+                        image = await AvatarImageView.renderImage(avatarImage, { type: 'face', scale });
+                    } else {
+                        image = await avatarImage.getCroppedImageAsync(setType, false, scale);
+                    }
 
-                setImageData({
-                    width: image.width,
-                    height: image.height,
-                    url: image.src,
-                });
+                    if (!image || cancelled) return;
+
+                    setImageData({
+                        width: image.width,
+                        height: image.height,
+                        url: image.src,
+                    });
+                } finally {
+                    renderSettled = true;
+                    disposeAvatar();
+                }
             };
 
             void load();
-        }, [figure, direction, randomValue]);
 
-        useEffect(() => {
             return () => {
-                disposed.current = true;
+                cancelled = true;
+
+                if (renderSettled) disposeAvatar();
             };
-        }, []);
+        }, [figure, gender, headOnly, direction, scale, crop, renderVersion]);
 
         return (
             <div
@@ -82,7 +104,7 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
                     width: imageData.width,
                     height: imageData.height,
                     backgroundImage: `url(${imageData.url})`,
-                    backgroundPosition: 'center -8px',
+                    backgroundPosition: crop === 'face' ? 'center' : 'center -8px',
                     backgroundRepeat: 'no-repeat',
                     pointerEvents: 'none',
                 }}

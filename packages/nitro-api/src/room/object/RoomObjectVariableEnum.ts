@@ -79,6 +79,7 @@ export enum RoomObjectVariableEnum {
     FurnitureBadgeAssetName = 'furniture_badge_asset_name',
     FurnitureBadgeVisibleInState = 'furniture_badge_visible_in_state',
     FurnitureAlphaMultiplier = 'furniture_alpha_multiplier',
+    FurnitureInvisibleLayer = 'furniture_invisible_layer',
     FurnitureUsagePolicy = 'furniture_usage_policy',
     FurnitureOwnerId = 'furniture_owner_id',
     FurnitureOwnerName = 'furniture_owner_name',

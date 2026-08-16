@@ -1,4 +1,4 @@
-import type { IPurchasableOffer } from '@nitrodevco/nitro-api';
+import { FurnitureTypeEnum, type IPurchasableOffer } from '@nitrodevco/nitro-api';
 import {
     NotEnoughBalanceMessage,
     PurchaseErrorMessage,
@@ -17,14 +17,23 @@ import {
     useWallet,
     useWebSocketContext,
 } from '#base/context';
-import { useMessageListener } from '#base/hooks';
+import { useCatalogOfferActions, useMessageListener } from '#base/hooks';
 import { BitmapText, Border, Button, ContainerButton } from '#base/theme';
+import { createToolbarTransitionToIcon } from '#base/utils';
 
 import type { CatalogPriceEntry } from './catalogPriceUtilities';
 import { getCatalogOfferPriceEntries } from './catalogPriceUtilities';
 import type { CatalogPurchaseAlert } from './CatalogPurchaseAlertView';
 import { CatalogPurchaseAlertView } from './CatalogPurchaseAlertView';
 import { CatalogPurchaseConfirmationView } from './CatalogPurchaseConfirmationView';
+import { CatalogSpinnerWidgetView } from './CatalogSpinnerWidgetView';
+import { CatalogTotalPriceWidgetView } from './CatalogTotalPriceWidgetView';
+
+type CatalogPurchaseSelection = {
+    offer: IPurchasableOffer;
+    quantity: number;
+    extraParam: string;
+};
 
 export const CatalogPurchaseWidgetView = () => {
     const { activeOffer, activePage } = useCatalogSelectors();
@@ -32,11 +41,21 @@ export const CatalogPurchaseWidgetView = () => {
     const ownClubLevel = useOwnClubLevel();
     const accountSafetyLocked = useUserContext(x => x.accountSafetyLocked);
     const { send } = useWebSocketContext();
+    const { getOfferProduct } = useCatalogOfferActions();
     const t = useTranslation();
-    const [confirmationOffer, setConfirmationOffer] = useState<IPurchasableOffer>();
+    const [quantitySelection, setQuantitySelection] = useState({
+        offerId: -1,
+        quantity: 1,
+    });
+    const [confirmation, setConfirmation] = useState<CatalogPurchaseSelection>();
     const [alert, setAlert] = useState<CatalogPurchaseAlert>();
     const [isPending, setIsPending] = useState(false);
     const portalTarget = typeof document === 'undefined' ? null : document.body;
+    const quantity =
+        activeOffer?.bundlePurchaseAllowed &&
+        quantitySelection.offerId === activeOffer.offerId
+            ? quantitySelection.quantity
+            : 1;
 
     const getActivityPointName = (type: number) => {
         if (type === 0) return t('purse.duckets', 'Duckets');
@@ -85,7 +104,16 @@ export const CatalogPurchaseWidgetView = () => {
     const closePurchase = () => {
         if (isPending) return;
 
-        setConfirmationOffer(undefined);
+        setConfirmation(undefined);
+    };
+
+    const updateQuantity = (nextQuantity: number) => {
+        if (!activeOffer?.bundlePurchaseAllowed) return;
+
+        setQuantitySelection({
+            offerId: activeOffer.offerId,
+            quantity: nextQuantity,
+        });
     };
 
     const openPurchase = () => {
@@ -107,7 +135,7 @@ export const CatalogPurchaseWidgetView = () => {
             return;
         }
 
-        const shortage = getCatalogOfferPriceEntries(activeOffer).find(
+        const shortage = getCatalogOfferPriceEntries(activeOffer, quantity).find(
             price => price.amount > getBalance(price),
         );
 
@@ -116,16 +144,23 @@ export const CatalogPurchaseWidgetView = () => {
             return;
         }
 
-        setConfirmationOffer(activeOffer);
+        const product = getOfferProduct(activeOffer);
+        const extraParam =
+            product?.productType === FurnitureTypeEnum.Wall
+                ? product.extraParam
+                : '';
+
+        setConfirmation({ offer: activeOffer, quantity, extraParam });
     };
 
     const confirmPurchase = () => {
-        if (!confirmationOffer || isPending) return;
+        if (!confirmation || isPending) return;
 
-        const pageId = confirmationOffer.page?.pageId ?? activePage?.pageId ?? -1;
+        const pageId =
+            confirmation.offer.page?.pageId ?? activePage?.pageId ?? -1;
 
         if (pageId < 0) {
-            setConfirmationOffer(undefined);
+            setConfirmation(undefined);
             setAlert({
                 title: t('catalog.alert.purchaseerror.title', 'Purchase failed'),
                 message: t(
@@ -140,25 +175,35 @@ export const CatalogPurchaseWidgetView = () => {
         send(
             new PurchaseFromCatalogComposer({
                 pageId,
-                offerId: confirmationOffer.offerId,
-                extraParam: '',
-                quantity: 1,
+                offerId: confirmation.offer.offerId,
+                extraParam: confirmation.extraParam,
+                quantity: confirmation.quantity,
             }),
         );
     };
 
     useMessageListener(PurchaseOKMessage, data => {
-        if (!isPending || confirmationOffer?.offerId !== data.offer.id) return;
+        if (!isPending || confirmation?.offer.offerId !== data.offer.id) return;
 
+        const product = getOfferProduct(confirmation.offer);
+        const transitionTarget =
+            product?.productType === FurnitureTypeEnum.Effect
+                ? 'me-menu'
+                : 'inventory';
+        const transitionSource = document.querySelector<HTMLImageElement>(
+            '[data-catalog-purchase-transition-source]',
+        );
+
+        createToolbarTransitionToIcon(transitionTarget, transitionSource);
         setIsPending(false);
-        setConfirmationOffer(undefined);
+        setConfirmation(undefined);
     });
 
     useMessageListener(NotEnoughBalanceMessage, data => {
         if (!isPending) return;
 
         setIsPending(false);
-        setConfirmationOffer(undefined);
+        setConfirmation(undefined);
 
         if (data.notEnoughCredits) {
             setAlert(getNotEnoughAlert({ kind: 'credits', amount: 0 }));
@@ -185,7 +230,7 @@ export const CatalogPurchaseWidgetView = () => {
         );
 
         setIsPending(false);
-        setConfirmationOffer(undefined);
+        setConfirmation(undefined);
         setAlert({
             title: t('catalog.alert.purchaseerror.title', 'Purchase failed'),
             message:
@@ -202,7 +247,7 @@ export const CatalogPurchaseWidgetView = () => {
         if (!isPending) return;
 
         setIsPending(false);
-        setConfirmationOffer(undefined);
+        setConfirmation(undefined);
         setAlert({
             title: t('catalog.alert.purchasenotallowed.title', 'Purchase not allowed'),
             message:
@@ -228,11 +273,25 @@ export const CatalogPurchaseWidgetView = () => {
 
         return (
             <>
+                {activeOffer.bundlePurchaseAllowed && (
+                    <>
+                        <CatalogSpinnerWidgetView
+                            key={activeOffer.offerId}
+                            quantity={quantity}
+                            onQuantityChange={updateQuantity}
+                        />
+                        <CatalogTotalPriceWidgetView
+                            offer={activeOffer}
+                            quantity={quantity}
+                        />
+                    </>
+                )}
                 <div className="catalog-purchase-buttons">
                     <Button
                         variant="3"
                         type="button"
                         className="catalog-purchase-gift-button"
+                        disabled={quantity > 1 || !activeOffer.giftable}
                     >
                         <BitmapText
                             recipe="regular-12"
@@ -263,12 +322,13 @@ export const CatalogPurchaseWidgetView = () => {
                     </ContainerButton>
                 </div>
                 {portalTarget &&
-                    confirmationOffer &&
-                    confirmationOffer.offerId === activeOffer.offerId &&
+                    confirmation &&
+                    confirmation.offer.offerId === activeOffer.offerId &&
                     createPortal(
                         <div className="catalog-purchase-modal-layer">
                             <CatalogPurchaseConfirmationView
-                                offer={confirmationOffer}
+                                offer={confirmation.offer}
+                                quantity={confirmation.quantity}
                                 isPending={isPending}
                                 onConfirm={confirmPurchase}
                                 onClose={closePurchase}

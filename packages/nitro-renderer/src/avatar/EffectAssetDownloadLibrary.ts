@@ -10,6 +10,7 @@ export class EffectAssetDownloadLibrary implements IEffectAssetDownloadLibrary {
     private _assetUrl: string;
     private _animations: IAssetAnimation[];
     private _onDownloaded: (library: IEffectAssetDownloadLibrary) => void;
+    private _downloadPromise: Promise<boolean> | undefined;
 
     constructor(libraryName: string, revision: number, assetUrl: string, onDownloaded: (library: IEffectAssetDownloadLibrary) => void) {
         this._libraryName = libraryName;
@@ -25,18 +26,28 @@ export class EffectAssetDownloadLibrary implements IEffectAssetDownloadLibrary {
     }
 
     public downloadAsset(): void {
-        if (this._state === AvatarAssetDownloadStatus.Loading || this._state === AvatarAssetDownloadStatus.Loaded) return;
+        void this.getOrCreateDownload();
+    }
 
-        const asset = GetAssetManager().getCollection(this._libraryName);
+    public async downloadAssetAsync(): Promise<void> {
+        await this.getOrCreateDownload();
+    }
 
-        if (asset) return;
+    private getOrCreateDownload(): Promise<boolean> {
+        if (this._state === AvatarAssetDownloadStatus.Loaded) return Promise.resolve(true);
+
+        if (this._downloadPromise) return this._downloadPromise;
 
         this._state = AvatarAssetDownloadStatus.Loading;
 
-        const library = this as unknown as IEffectAssetDownloadLibrary;
+        const promise = (async () => {
+            const asset = GetAssetManager().getCollection(this._libraryName);
 
-        GetAssetManager().downloadAsset(this._assetUrl).then(flag => {
-            if (!flag) return;
+            if (!asset && !(await GetAssetManager().downloadAsset(this._assetUrl))) {
+                this._state = AvatarAssetDownloadStatus.NotLoaded;
+
+                return false;
+            }
 
             this._state = AvatarAssetDownloadStatus.Loaded;
 
@@ -44,28 +55,23 @@ export class EffectAssetDownloadLibrary implements IEffectAssetDownloadLibrary {
 
             if (collection) this._animations = collection.data?.animations ?? [];
 
-            void this._onDownloaded(library);
-        }).catch(err => NitroLogger.error(err));
-    }
+            this._onDownloaded(this);
 
-    public async downloadAssetAsync(): Promise<void> {
-        if (this._state === AvatarAssetDownloadStatus.Loading || this._state === AvatarAssetDownloadStatus.Loaded) return;
+            return true;
+        })()
+            .catch(err => {
+                this._state = AvatarAssetDownloadStatus.NotLoaded;
+                NitroLogger.error(err);
 
-        const asset = GetAssetManager().getCollection(this._libraryName);
+                return false;
+            })
+            .finally(() => {
+                this._downloadPromise = undefined;
+            });
 
-        if (!asset) {
-            this._state = AvatarAssetDownloadStatus.Loading;
+        this._downloadPromise = promise;
 
-            if (!await GetAssetManager().downloadAsset(this._assetUrl)) return;
-        }
-
-        this._state = AvatarAssetDownloadStatus.Loaded;
-
-        const collection = GetAssetManager().getCollection(this._libraryName);
-
-        if (collection) this._animations = collection.data?.animations ?? [];
-
-        void this._onDownloaded(this);
+        return promise;
     }
 
     public get libraryName(): string {

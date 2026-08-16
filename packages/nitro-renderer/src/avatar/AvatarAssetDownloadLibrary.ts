@@ -9,6 +9,7 @@ export class AvatarAssetDownloadLibrary implements IAvatarAssetDownloadLibrary {
     private _revision: number;
     private _assetUrl: string;
     private _onDownloaded: (library: IAvatarAssetDownloadLibrary) => void;
+    private _downloadPromise: Promise<boolean> | undefined;
 
     constructor(libraryName: string, revision: number, assetUrl: string, onDownloaded: (library: IAvatarAssetDownloadLibrary) => void) {
         this._libraryName = libraryName;
@@ -23,39 +24,47 @@ export class AvatarAssetDownloadLibrary implements IAvatarAssetDownloadLibrary {
     }
 
     public downloadAsset(): void {
-        if (this._state === AvatarAssetDownloadStatus.Loading || this._state === AvatarAssetDownloadStatus.Loaded) return;
-
-        const asset = GetAssetManager().getCollection(this._libraryName);
-
-        if (asset) return;
-
-        this._state = AvatarAssetDownloadStatus.Loading;
-
-        const library = this as unknown as IAvatarAssetDownloadLibrary;
-
-        GetAssetManager().downloadAsset(this._assetUrl).then(flag => {
-            if (!flag) return;
-
-            this._state = AvatarAssetDownloadStatus.Loaded;
-
-            void this._onDownloaded(library);
-        }).catch(err => NitroLogger.error(err));
+        void this.getOrCreateDownload();
     }
 
     public async downloadAssetAsync(): Promise<void> {
-        if (this._state === AvatarAssetDownloadStatus.Loading || this._state === AvatarAssetDownloadStatus.Loaded) return;
+        await this.getOrCreateDownload();
+    }
 
-        const asset = GetAssetManager().getCollection(this._libraryName);
+    private getOrCreateDownload(): Promise<boolean> {
+        if (this._state === AvatarAssetDownloadStatus.Loaded) return Promise.resolve(true);
 
-        if (!asset) {
-            this._state = AvatarAssetDownloadStatus.Loading;
+        if (this._downloadPromise) return this._downloadPromise;
 
-            if (!await GetAssetManager().downloadAsset(this._assetUrl)) return;
-        }
+        this._state = AvatarAssetDownloadStatus.Loading;
 
-        this._state = AvatarAssetDownloadStatus.Loaded;
+        const promise = (async () => {
+            const asset = GetAssetManager().getCollection(this._libraryName);
 
-        void this._onDownloaded(this);
+            if (!asset && !(await GetAssetManager().downloadAsset(this._assetUrl))) {
+                this._state = AvatarAssetDownloadStatus.NotLoaded;
+
+                return false;
+            }
+
+            this._state = AvatarAssetDownloadStatus.Loaded;
+            this._onDownloaded(this);
+
+            return true;
+        })()
+            .catch(err => {
+                this._state = AvatarAssetDownloadStatus.NotLoaded;
+                NitroLogger.error(err);
+
+                return false;
+            })
+            .finally(() => {
+                this._downloadPromise = undefined;
+            });
+
+        this._downloadPromise = promise;
+
+        return promise;
     }
 
     public get libraryName(): string {

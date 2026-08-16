@@ -1,8 +1,9 @@
-import { CatalogItemGridWidgetView } from "../widgets/CatalogItemGridWidgetView";
-import { CatalogProductViewWidgetView } from "../widgets/CatalogProductViewWidgetView";
-import { CatalogPurchaseWidgetView } from "../widgets/CatalogPurchaseWidgetView";
+import { CatalogItemGridWidgetView } from '../widgets/CatalogItemGridWidgetView';
+import { CatalogProductViewWidgetView } from '../widgets/CatalogProductViewWidgetView';
+import { CatalogPurchaseWidgetView } from '../widgets/CatalogPurchaseWidgetView';
+import type { CatalogLayoutComponent } from './catalogLayoutTypes';
 
-export const CatalogLayoutDefaultView = () => {
+export const CatalogLayoutDefaultView: CatalogLayoutComponent = () => {
     return (
         <>
             <div className="catalog-product-preview">
@@ -16,4 +17,4 @@ export const CatalogLayoutDefaultView = () => {
             </div>
         </>
     );
-}
+};

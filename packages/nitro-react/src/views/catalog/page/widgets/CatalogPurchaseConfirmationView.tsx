@@ -20,6 +20,7 @@ import {
 
 type CatalogPurchaseConfirmationViewProps = {
     offer: IPurchasableOffer;
+    quantity: number;
     isPending: boolean;
     onConfirm: () => void;
     onClose: () => void;
@@ -28,10 +29,10 @@ type CatalogPurchaseConfirmationViewProps = {
 export const CatalogPurchaseConfirmationView = (
     props: CatalogPurchaseConfirmationViewProps,
 ) => {
-    const { offer, isPending, onConfirm, onClose } = props;
+    const { offer, quantity, isPending, onConfirm, onClose } = props;
     const product = useCatalogOfferProduct(offer);
     const productIconUrl = useProductIconUrl(product!);
-    const prices = getCatalogOfferPriceEntries(offer);
+    const prices = getCatalogOfferPriceEntries(offer, quantity);
     const displayPrices: CatalogPriceEntry[] = prices.length
         ? prices
         : [{ kind: 'credits', amount: 0 }];
@@ -60,6 +61,7 @@ export const CatalogPurchaseConfirmationView = (
                     <Border variant="0" className="catalog-purchase-confirmation-image">
                         <Image
                             src={productIconUrl}
+                            data-catalog-purchase-transition-source
                             className="max-h-full max-w-full pixel-art"
                         />
                     </Border>

@@ -4,6 +4,7 @@ export * from './catalog/useCatalogNodeActions';
 export * from './catalog/useCatalogOfferActions';
 export * from './catalog/useCatalogOfferProduct';
 export * from './catalog/useCatalogPageRequest';
+export * from './catalog/useCatalogProductPreview';
 export * from './catalog/useCatalogVisibility';
 export * from './catalog/useProductIconUrl';
 export * from './communication/useCommunicationIncoming';

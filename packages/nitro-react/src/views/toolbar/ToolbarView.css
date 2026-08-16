@@ -29,12 +29,14 @@
         }
 
         &.avatar-image {
-            @apply overflow-hidden rounded-full p-2.5;
+            @apply overflow-hidden rounded-full p-0;
 
             .avatar-image-container {
-                margin-left: -34px;
-                margin-top: -35px;
-                clip-path: circle(21px at 46.5px 47.5px);
+                @apply absolute pointer-events-none;
+
+                left: -2.5px;
+                top: -2.5px;
+                clip-path: circle(20px at 25px 25px);
             }
         }
     }

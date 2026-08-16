@@ -20,14 +20,12 @@ export class EventDispatcher implements IEventDispatcher {
             this._listeners.set(type, listeners);
         }
 
-        const index = listeners.push(cb) - 1;
+        listeners.push(cb);
 
         NitroLogger.events('Added Event Listener', type);
 
         return () => {
-            listeners.splice(index, 1);
-
-            if (!listeners.length) this._listeners.delete(type);
+            this.removeEventListener(type, cb);
         };
     }
 
@@ -38,8 +36,8 @@ export class EventDispatcher implements IEventDispatcher {
 
         if (!existing || !existing.length) return;
 
-        for (const [i, cb] of existing.entries()) {
-            if (!cb || cb !== cb) continue;
+        for (const [i, existingCb] of existing.entries()) {
+            if (existingCb !== cb) continue;
 
             existing.splice(i, 1);
 

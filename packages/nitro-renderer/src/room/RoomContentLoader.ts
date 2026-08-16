@@ -31,7 +31,7 @@ export class RoomContentLoader implements IRoomContentLoader {
 
     private _iconListener: IRoomContentListener;
     private _images: Map<string, HTMLImageElement> = new Map();
-    private _events: Map<string, IEventDispatcher> = new Map();
+    private _assetDownloadPromises: Map<string, Promise<boolean>> = new Map();
 
     private _activeObjects: { [index: string]: number } = {};
     private _activeObjectTypes: Map<number, string> = new Map();
@@ -45,8 +45,6 @@ export class RoomContentLoader implements IRoomContentLoader {
     private _petColors: Map<number, Map<number, IPetColorResult>> = new Map();
     private _objectAliases: Map<string, string> = new Map();
     private _objectOriginalNames: Map<string, string> = new Map();
-
-    private _pendingContentTypes: string[] = [];
 
     public async init(): Promise<void> {
         const petTypes = GetConfigValue<string[]>('renderer.petTypes') ?? [];
@@ -293,25 +291,37 @@ export class RoomContentLoader implements IRoomContentLoader {
     }
 
     public downloadAsset(type: string, events: IEventDispatcher): void {
-        const assetUrl: string = this.getAssetUrls(type)?.[0];
+        void this.getOrCreateAssetDownload(type).then(flag => {
+            events.dispatchEvent(new RoomContentLoadedEvent(
+                flag ? RoomContentLoadedEvent.RCLE_SUCCESS : RoomContentLoadedEvent.RCLE_FAILURE,
+                type,
+            ));
+        });
+    }
 
-        if (!assetUrl || !assetUrl.length || this._pendingContentTypes.indexOf(type) >= 0 || this.getOrRemoveEventDispatcher(type)) return;
+    public async downloadAssetAsync(type: string): Promise<boolean> {
+        return this.getOrCreateAssetDownload(type);
+    }
 
-        this._pendingContentTypes.push(type);
-        this._events.set(type, events);
+    private getOrCreateAssetDownload(type: string): Promise<boolean> {
+        if (this.getCollection(type)) return Promise.resolve(true);
 
-        GetAssetManager().downloadAsset(assetUrl)
+        const existing = this._assetDownloadPromises.get(type);
+
+        if (existing) return existing;
+
+        const assetUrl = this.getAssetUrls(type)?.[0];
+
+        if (!assetUrl?.length) return Promise.resolve(false);
+
+        const promise = GetAssetManager().downloadAsset(assetUrl)
             .then(flag => {
-                if (!flag) {
-                    this._events.get(type)?.dispatchEvent(new RoomContentLoadedEvent(RoomContentLoadedEvent.RCLE_FAILURE, type));
-
-                    return;
-                }
+                if (!flag) return false;
 
                 const petIndex = this._pets[type];
                 const collection = this.getCollection(type);
 
-                if (petIndex && collection && collection.data.palettes) {
+                if (petIndex !== undefined && collection?.data.palettes) {
                     const palettes: Map<number, IPetColorResult> = new Map();
 
                     for (const palette of collection.data.palettes) {
@@ -328,45 +338,14 @@ export class RoomContentLoader implements IRoomContentLoader {
                     this._petColors.set(petIndex, palettes);
                 }
 
-                this._events.get(type)?.dispatchEvent(new RoomContentLoadedEvent(RoomContentLoadedEvent.RCLE_SUCCESS, type));
+                return true;
             })
-            .catch(_err => {
-                this._events.get(type)?.dispatchEvent(new RoomContentLoadedEvent(RoomContentLoadedEvent.RCLE_FAILURE, type));
-            });
-    }
+            .catch(() => false)
+            .finally(() => this._assetDownloadPromises.delete(type));
 
-    public async downloadAssetAsync(type: string): Promise<boolean> {
-        const assetUrl: string = this.getAssetUrls(type)?.[0];
+        this._assetDownloadPromises.set(type, promise);
 
-        if (!assetUrl || !assetUrl.length) return false;
-
-        if (this._pendingContentTypes.indexOf(type) >= 0) return false;
-
-        this._pendingContentTypes.push(type);
-
-        if (!(await GetAssetManager().downloadAsset(assetUrl))) return false;
-
-        const petIndex = this._pets[type];
-        const collection = this.getCollection(type);
-
-        if (petIndex && collection && collection.data.palettes) {
-            const palettes: Map<number, IPetColorResult> = new Map();
-
-            for (const palette of collection.data.palettes) {
-                const paletteData = collection.palettes.get(palette.id);
-
-                if (!paletteData) continue;
-
-                palettes.set(
-                    palette.id,
-                    new PetColorResult(paletteData.primaryColor, paletteData.secondaryColor, palette.breed ?? 0, palette.colorTag ?? -1, palette.id, palette.master ?? false, palette.tags ?? []),
-                );
-            }
-
-            this._petColors.set(petIndex, palettes);
-        }
-
-        return true;
+        return promise;
     }
 
     public getAssetAliasName(name: string): string {
@@ -468,11 +447,4 @@ export class RoomContentLoader implements IRoomContentLoader {
         return this._pets;
     }
 
-    private getOrRemoveEventDispatcher(type: string, remove: boolean = false): IEventDispatcher | undefined {
-        const existing = this._events.get(type);
-
-        if (remove && existing) this._events.delete(type);
-
-        return existing;
-    }
 }

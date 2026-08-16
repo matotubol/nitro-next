@@ -15,6 +15,7 @@ export * from './AvatarAssetDownloadLibrary';
 export * from './AvatarAssetDownloadManager';
 export * from './AvatarFigureContainer';
 export * from './AvatarImage';
+export * from './AvatarImageView';
 export * from './AvatarImageBodyPartContainer';
 export * from './AvatarImagePartContainer';
 export * from './AvatarRenderManager';

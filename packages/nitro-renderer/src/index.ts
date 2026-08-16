@@ -20,6 +20,7 @@ export * from './avatar/AvatarAssetDownloadLibrary';
 export * from './avatar/AvatarAssetDownloadManager';
 export * from './avatar/AvatarFigureContainer';
 export * from './avatar/AvatarImage';
+export * from './avatar/AvatarImageView';
 export * from './avatar/AvatarImageBodyPartContainer';
 export * from './avatar/AvatarImagePartContainer';
 export * from './avatar/AvatarRenderManager';

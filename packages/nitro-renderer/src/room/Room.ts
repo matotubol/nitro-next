@@ -577,7 +577,9 @@ export class Room implements IRoom {
             }
         }
 
-        //EventStore.getState().emit(new RoomEngineObjectEvent(RoomEngineObjectEvent.CONTENT_UPDATED, id, objectId, category));
+        this.dispatchEvent(
+            new RoomEngineObjectEvent(RoomEngineObjectEvent.CONTENT_UPDATED, this._roomId, objectId, category),
+        );
 
         //this.addObjectToTileMap(id, object);
     }

@@ -1,3 +1,4 @@
+export * from './createToolbarTransitionToIcon';
 export * from './FixedSizeStack';
 export * from './framePositionStorage';
 export * from './GetBrowserZoom';

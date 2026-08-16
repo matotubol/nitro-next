@@ -1,4 +1,4 @@
-import { FurnitureUsagePolicyEnum, IObjectData, IRoom, IRoomObjectController, IVector3D, LegacyDataType, RoomGeometryScaleType, RoomId, RoomObjectCategoryEnum, RoomObjectUserType, RoomObjectUserTypeName, RoomObjectVariableEnum, Vector3d } from "@nitrodevco/nitro-api";
+import { AvatarActionStateType, AvatarExpressionEnum, FurnitureUsagePolicyEnum, IObjectData, IRoom, IRoomObjectController, IVector3D, LegacyDataType, RoomEngineObjectEvent, RoomGeometryScaleType, RoomId, RoomObjectCategoryEnum, RoomObjectUserType, RoomObjectUserTypeName, RoomObjectVariableEnum, Vector3d } from "@nitrodevco/nitro-api";
 import { GetRoomEngine, GetTicker, TextureUtils } from "@nitrodevco/nitro-renderer";
 import { PointData, Rectangle, Ticker } from "pixi.js";
 import { RefObject, useEffect, useRef, useState } from "react";
@@ -7,6 +7,15 @@ import { useRoomMapping } from "./useRoomMapping";
 
 const PREVIEW_OBJECT_ID: number = 1;
 const PREVIEW_OBJECT_LOCATION = new Vector3d(2, 2, 0);
+const PREVIEW_AVATAR_SIT_LOCATION = new Vector3d(2, 2, 0.55);
+const PREVIEW_AVATAR_LAY_LOCATION = new Vector3d(1, 1, 0.8);
+const PREVIEW_AVATAR_ACTION_COUNT: number = 6;
+const PREVIEW_AVATAR_ACTION_STAND: number = 0;
+const PREVIEW_AVATAR_ACTION_WALK: number = 1;
+const PREVIEW_AVATAR_ACTION_DANCE: number = 2;
+const PREVIEW_AVATAR_ACTION_SIT: number = 3;
+const PREVIEW_AVATAR_ACTION_LAY: number = 4;
+const PREVIEW_AVATAR_ACTION_WAVE: number = 5;
 const PREVIEW_WALL_ITEM_LOCATION = new Vector3d(0.5, 2.3, 1.8);
 const PREVIEW_WALL_ITEM_DEFAULT_DIRECTION: number = 90;
 const PREVIEW_WALL_ITEM_MIRRORED_DIRECTION: number = 180;
@@ -31,6 +40,8 @@ export const useRoomPreviewer = (
     const [canRotate, setCanRotate] = useState<boolean>(false);
     const { createMapForSize } = useRoomMapping();
     const currentObjectCategory = useRef<RoomObjectCategoryEnum>(RoomObjectCategoryEnum.Minimum);
+    const currentPreviewClassId = useRef<number>(-1);
+    const currentPreviewExtraParam = useRef<string>('');
     const currentPreviewRectangle = useRef<Rectangle | null>(null);
     const currentPreviewWidth = useRef<number>(0);
     const currentPreviewHeight = useRef<number>(0);
@@ -40,6 +51,7 @@ export const useRoomPreviewer = (
     const canRotateRef = useRef<boolean>(false);
     const automaticStateChange = useRef<boolean>(false);
     const previousAutomaticStateChangeTime = useRef<number>(-1);
+    const currentAvatarAction = useRef<number>(PREVIEW_AVATAR_ACTION_STAND);
 
     const getValidRoomObjectDirection = (roomObject: IRoomObjectController, forward: boolean) => {
         if (!roomObject?.model) return 0;
@@ -83,6 +95,10 @@ export const useRoomPreviewer = (
         return room.updateRoomObjectState(PREVIEW_OBJECT_ID, currentObjectCategory.current);
     };
 
+    const applyInvisibleLayerState = (roomObject: IRoomObjectController | undefined) => {
+        roomObject?.model.setValue(RoomObjectVariableEnum.FurnitureInvisibleLayer, 1);
+    };
+
     const startAutomaticStateChange = () => {
         automaticStateChange.current = true;
         previousAutomaticStateChangeTime.current = GetTicker().lastTime;
@@ -103,6 +119,8 @@ export const useRoomPreviewer = (
         const roomObject = room.getRoomObject(PREVIEW_OBJECT_ID, currentObjectCategory.current);
 
         if (!roomObject) return false;
+
+        if (currentObjectCategory.current === RoomObjectCategoryEnum.Unit) return true;
 
         if (currentObjectCategory.current === RoomObjectCategoryEnum.Wall) return true;
 
@@ -148,6 +166,93 @@ export const useRoomPreviewer = (
         room.updateRoomObjectWallLocation(PREVIEW_OBJECT_ID, new Vector3d(x, y, z));
     };
 
+    const normalizeAvatarDirection = (direction: number) => {
+        direction = Math.round(direction / 45) % 8;
+
+        return direction < 0 ? direction + 8 : direction;
+    };
+
+    const isDiagonalAvatarDirection = (direction: number) => (normalizeAvatarDirection(direction) % 2) !== 0;
+
+    const isValidLayingDirection = (direction: number) => {
+        const normalized = normalizeAvatarDirection(direction);
+
+        return normalized === 0 || normalized === 2;
+    };
+
+    const applyPreviewAvatarAction = (action: number) => {
+        const room = roomRef.current;
+
+        if (!room || currentObjectCategory.current !== RoomObjectCategoryEnum.Unit) return false;
+
+        const roomObject = room.getRoomObject(PREVIEW_OBJECT_ID, RoomObjectCategoryEnum.Unit);
+
+        if (!roomObject) return false;
+
+        room.updateRoomObjectUserAction(PREVIEW_OBJECT_ID, RoomObjectVariableEnum.FigureDance, 0);
+        room.updateRoomObjectUserAction(PREVIEW_OBJECT_ID, RoomObjectVariableEnum.FigureExpression, 0);
+
+        let location = PREVIEW_OBJECT_LOCATION;
+
+        switch (action) {
+            case PREVIEW_AVATAR_ACTION_WALK:
+                room.updateRoomObjectUserPosture(PREVIEW_OBJECT_ID, AvatarActionStateType.Walk);
+                break;
+            case PREVIEW_AVATAR_ACTION_DANCE:
+                room.updateRoomObjectUserPosture(PREVIEW_OBJECT_ID, AvatarActionStateType.Stand);
+                room.updateRoomObjectUserAction(PREVIEW_OBJECT_ID, RoomObjectVariableEnum.FigureDance, 1);
+                break;
+            case PREVIEW_AVATAR_ACTION_SIT:
+                location = PREVIEW_AVATAR_SIT_LOCATION;
+                room.updateRoomObjectUserPosture(PREVIEW_OBJECT_ID, AvatarActionStateType.Sit);
+                break;
+            case PREVIEW_AVATAR_ACTION_LAY:
+                location = PREVIEW_AVATAR_LAY_LOCATION;
+                room.updateRoomObjectUserPosture(PREVIEW_OBJECT_ID, AvatarActionStateType.Lay);
+                break;
+            case PREVIEW_AVATAR_ACTION_WAVE:
+                room.updateRoomObjectUserPosture(PREVIEW_OBJECT_ID, AvatarActionStateType.Stand);
+                room.updateRoomObjectUserAction(PREVIEW_OBJECT_ID, RoomObjectVariableEnum.FigureExpression, AvatarExpressionEnum.Wave);
+                break;
+            default:
+                room.updateRoomObjectUserPosture(PREVIEW_OBJECT_ID, AvatarActionStateType.Stand);
+                break;
+        }
+
+        const direction = roomObject.getDirection();
+        const headDirection = roomObject.model.getValue<number>(RoomObjectVariableEnum.HeadDirection);
+
+        room.updateRoomObjectUser(PREVIEW_OBJECT_ID, location, location, false, 0, direction, headDirection);
+        currentAvatarAction.current = action;
+        updateRoomPreview();
+        room.update(-1, true);
+
+        return true;
+    };
+
+    const cyclePreviewAvatarAction = () => {
+        const room = roomRef.current;
+
+        if (!room || currentObjectCategory.current !== RoomObjectCategoryEnum.Unit) return false;
+
+        const roomObject = room.getRoomObject(PREVIEW_OBJECT_ID, RoomObjectCategoryEnum.Unit);
+
+        if (!roomObject) return false;
+
+        const direction = roomObject.getDirection().x;
+        let action = currentAvatarAction.current;
+
+        do {
+            action = (action + 1) % PREVIEW_AVATAR_ACTION_COUNT;
+        }
+        while (
+            (action === PREVIEW_AVATAR_ACTION_SIT && isDiagonalAvatarDirection(direction)) ||
+            (action === PREVIEW_AVATAR_ACTION_LAY && !isValidLayingDirection(direction))
+        );
+
+        return applyPreviewAvatarAction(action);
+    };
+
     const rotatePreviewObject = (forward: boolean) => {
         const room = roomRef.current;
 
@@ -160,6 +265,26 @@ export const useRoomPreviewer = (
         let direction = roomObject.getDirection().x;
 
         switch (currentObjectCategory.current) {
+            case RoomObjectCategoryEnum.Unit: {
+                let directionStep = forward ? -1 : 1;
+                const directionIndex = normalizeAvatarDirection(direction);
+
+                if (currentAvatarAction.current === PREVIEW_AVATAR_ACTION_SIT && isDiagonalAvatarDirection(direction + (directionStep * 45))) {
+                    directionStep *= 2;
+                }
+                else if (currentAvatarAction.current === PREVIEW_AVATAR_ACTION_LAY && !isValidLayingDirection(direction + (directionStep * 45))) {
+                    directionStep = directionIndex === 0 ? 2 : -directionIndex;
+                }
+
+                direction = normalizeAvatarDirection(direction + (directionStep * 45)) * 45;
+
+                room.updateRoomObjectUserDirection(
+                    PREVIEW_OBJECT_ID,
+                    new Vector3d(direction),
+                    direction,
+                );
+                break;
+            }
             case RoomObjectCategoryEnum.Floor: {
                 direction = getValidRoomObjectDirection(roomObject, forward);
 
@@ -355,6 +480,7 @@ export const useRoomPreviewer = (
         currentPreviewRectangle.current = null;
         needsZoomOut.current = false;
         automaticStateChange.current = false;
+        currentAvatarAction.current = PREVIEW_AVATAR_ACTION_STAND;
         setCanRotatePreview(false);
     };
 
@@ -363,16 +489,24 @@ export const useRoomPreviewer = (
 
         if (!room) return;
 
+        if (currentObjectCategory.current === RoomObjectCategoryEnum.Floor && currentPreviewClassId.current === classId) return PREVIEW_OBJECT_ID;
+
         if (!objectData) objectData = new LegacyDataType();
 
         resetRoomPreview(false);
 
+        currentPreviewClassId.current = classId;
+        currentPreviewExtraParam.current = '';
         currentObjectCategory.current = RoomObjectCategoryEnum.Floor;
 
         if (room.addFurnitureFloorByTypeId(PREVIEW_OBJECT_ID, classId, PREVIEW_OBJECT_LOCATION, direction, 0, objectData, NaN, -1, FurnitureUsagePolicyEnum.Nobody, 0, '', false, -1)) {
             const roomObject = room.getRoomObject(PREVIEW_OBJECT_ID, currentObjectCategory.current);
 
-            if (roomObject && !Number.isNaN(extra)) roomObject.model.setValue(RoomObjectVariableEnum.FurnitureExtras, extra);
+            if (roomObject) {
+                if (!Number.isNaN(extra)) roomObject.model.setValue(RoomObjectVariableEnum.FurnitureExtras, extra);
+
+                applyInvisibleLayerState(roomObject);
+            }
 
             currentPreviewRectangle.current = null;
             needsZoomOut.current = false;
@@ -382,6 +516,8 @@ export const useRoomPreviewer = (
 
             return PREVIEW_OBJECT_ID;
         }
+
+        currentObjectCategory.current = RoomObjectCategoryEnum.Minimum;
 
         return -1;
     };
@@ -391,14 +527,21 @@ export const useRoomPreviewer = (
 
         if (!room) return;
 
+        if (currentObjectCategory.current === RoomObjectCategoryEnum.Wall && currentPreviewClassId.current === classId && currentPreviewExtraParam.current === data) return PREVIEW_OBJECT_ID;
+
         resetRoomPreview(false);
 
+        currentPreviewClassId.current = classId;
+        currentPreviewExtraParam.current = data;
         currentObjectCategory.current = RoomObjectCategoryEnum.Wall;
 
         if (room.addFurnitureWallByTypeId(PREVIEW_OBJECT_ID, classId, PREVIEW_WALL_ITEM_LOCATION, direction, 0, data, -1, FurnitureUsagePolicyEnum.Nobody, 0, '', false)) {
             const roomObject = room.getRoomObject(PREVIEW_OBJECT_ID, currentObjectCategory.current);
 
-            if (roomObject) updatePreviewWallItemLocation(roomObject);
+            if (roomObject) {
+                applyInvisibleLayerState(roomObject);
+                updatePreviewWallItemLocation(roomObject);
+            }
 
             currentPreviewRectangle.current = null;
             needsZoomOut.current = false;
@@ -408,6 +551,8 @@ export const useRoomPreviewer = (
 
             return PREVIEW_OBJECT_ID;
         }
+
+        currentObjectCategory.current = RoomObjectCategoryEnum.Minimum;
 
         return -1;
     };
@@ -419,6 +564,8 @@ export const useRoomPreviewer = (
 
         resetRoomPreview(false);
 
+        currentPreviewClassId.current = 1;
+        currentPreviewExtraParam.current = figure;
         currentObjectCategory.current = RoomObjectCategoryEnum.Unit;
 
         if (!room.addRoomObjectUser(PREVIEW_OBJECT_ID, PREVIEW_OBJECT_LOCATION, new Vector3d(90), 135, RoomObjectUserType.User, figure)) {
@@ -433,7 +580,8 @@ export const useRoomPreviewer = (
         currentPreviewRectangle.current = null;
         needsZoomOut.current = false;
         automaticStateChange.current = false;
-        setCanRotatePreview(false);
+        currentAvatarAction.current = PREVIEW_AVATAR_ACTION_STAND;
+        setCanRotatePreview(canRotatePreviewObject());
         updateRoomPreview();
 
         return PREVIEW_OBJECT_ID;
@@ -443,6 +591,27 @@ export const useRoomPreviewer = (
         const room = GetRoomEngine().createRoom(RoomId.makeRoomPreviewerId(roomId));
 
         roomRef.current = room;
+
+        const onRoomObjectAdded = (event: RoomEngineObjectEvent) => {
+            if (event.roomId !== room.roomId || event.objectId !== PREVIEW_OBJECT_ID || event.category !== currentObjectCategory.current) return;
+
+            currentPreviewRectangle.current = null;
+            needsZoomOut.current = false;
+
+            const roomObject = room.getRoomObject(event.objectId, event.category);
+
+            applyInvisibleLayerState(roomObject);
+
+            if (roomObject && event.category === RoomObjectCategoryEnum.Wall) updatePreviewWallItemLocation(roomObject);
+        };
+        const removeAddedListener = room.eventDispatcher.addEventListener<RoomEngineObjectEvent>(
+            RoomEngineObjectEvent.ADDED,
+            onRoomObjectAdded,
+        );
+        const removeContentUpdatedListener = room.eventDispatcher.addEventListener<RoomEngineObjectEvent>(
+            RoomEngineObjectEvent.CONTENT_UPDATED,
+            onRoomObjectAdded,
+        );
 
         if (!room.isInitialized) {
             const map = createMapForSize(7);
@@ -458,6 +627,8 @@ export const useRoomPreviewer = (
         setIsReady(true);
 
         return () => {
+            removeAddedListener?.();
+            removeContentUpdatedListener?.();
             removePreviewObjects(room);
 
             if (roomRef.current === room) roomRef.current = undefined;
@@ -568,6 +739,7 @@ export const useRoomPreviewer = (
         addAvatarIntoRoom,
         resetRoomPreview,
         rotatePreviewObject,
+        cyclePreviewAvatarAction,
         changePreviewObjectState,
         setAddViewOffset,
         updateRoomPreviewPlaneTypes,

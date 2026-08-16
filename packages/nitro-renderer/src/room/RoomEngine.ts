@@ -7,8 +7,6 @@ import type {
     RoomGeometryScaleType,
 } from '@nitrodevco/nitro-api';
 import {
-    GetObjectDataForFlags,
-    ObjectDataFlagsEnum,
     RoomObjectCategoryEnum,
     RoomObjectUserTypeName,
     RoomObjectVariableEnum, Vector3d
@@ -69,90 +67,102 @@ export class RoomEngine implements IRoomEngine {
         frameCount: number = -1,
         posture: string = '',
     ): Promise<ImageLike | undefined> {
+        const contentLoader = GetRoomContentLoader();
+
+        if (!type) return undefined;
+
+        if (contentLoader.isLoaderType(type) && !contentLoader.getCollection(type)) {
+            if (!(await contentLoader.downloadAssetAsync(type))) return undefined;
+        }
+
         const room = this.getTemporaryRoom();
+        const reservedObjectId = this._imageObjectIdBank.reserveNumber();
 
-        let objectId = this._imageObjectIdBank.reserveNumber();
-        const objectCategory = GetRoomContentLoader().getCategoryForType(type);
+        if (reservedObjectId < 0) return undefined;
 
-        objectId++;
+        const objectId = reservedObjectId + 1;
+        const objectCategory = contentLoader.getCategoryForType(type);
+        let roomObject: IRoomObjectController | undefined;
+        let geometry: RoomGeometry | undefined;
 
-        const roomObject = (room.createRoomObjectAndInitalize(
-            objectId,
-            type,
-            objectCategory,
-        )) as IRoomObjectController;
+        try {
+            roomObject = room.createRoomObjectAndInitalize(
+                objectId,
+                type,
+                objectCategory,
+            ) as IRoomObjectController | undefined;
 
-        if (!roomObject) return undefined;
+            if (!roomObject?.model || !roomObject.visualization) return undefined;
 
-        const model = roomObject.model;
+            const model = roomObject.model;
 
-        switch (objectCategory) {
-            case RoomObjectCategoryEnum.Floor:
-            case RoomObjectCategoryEnum.Wall:
-                model.setValue(RoomObjectVariableEnum.FurnitureColor, parseInt(value));
-                model.setValue(RoomObjectVariableEnum.FurnitureExtras, extras);
+            switch (objectCategory) {
+                case RoomObjectCategoryEnum.Floor:
+                case RoomObjectCategoryEnum.Wall:
+                    model.setValue(RoomObjectVariableEnum.FurnitureColor, parseInt(value));
+                    model.setValue(RoomObjectVariableEnum.FurnitureExtras, extras);
+                    break;
+                case RoomObjectCategoryEnum.Unit:
+                    if (
+                        type === RoomObjectUserTypeName.User ||
+                        type === RoomObjectUserTypeName.Bot ||
+                        type === RoomObjectUserTypeName.RentableBot ||
+                        type === RoomObjectUserTypeName.Pet
+                    ) {
+                        model.setValue(RoomObjectVariableEnum.Figure, value);
+                    } else {
+                        const figureData = new PetFigureData(value);
 
-                if (state > -1) model.setValue(RoomObjectVariableEnum.FurnitureData, state.toString());
-                break;
-            case RoomObjectCategoryEnum.Unit:
-                if (
-                    type === RoomObjectUserTypeName.User ||
-                    type === RoomObjectUserTypeName.Bot ||
-                    type === RoomObjectUserTypeName.RentableBot ||
-                    type === RoomObjectUserTypeName.Pet
-                ) {
-                    model.setValue(RoomObjectVariableEnum.Figure, value);
-                } else {
-                    const figureData = new PetFigureData(value);
+                        model.setValue(RoomObjectVariableEnum.PetPaletteIndex, figureData.paletteId);
+                        model.setValue(RoomObjectVariableEnum.PetColor, figureData.color);
 
-                    model.setValue(RoomObjectVariableEnum.PetPaletteIndex, figureData.paletteId);
-                    model.setValue(RoomObjectVariableEnum.PetColor, figureData.color);
+                        if (figureData.headOnly) model.setValue(RoomObjectVariableEnum.PetHeadOnly, 1);
 
-                    if (figureData.headOnly) model.setValue(RoomObjectVariableEnum.PetHeadOnly, 1);
+                        if (figureData.hasCustomParts) {
+                            model.setValue(RoomObjectVariableEnum.PetCustomLayerIds, figureData.customLayerIds);
+                            model.setValue(RoomObjectVariableEnum.PetCustomPartsIds, figureData.customPartIds);
+                            model.setValue(RoomObjectVariableEnum.PetCustomPaletteIds, figureData.customPaletteIds);
+                        }
 
-                    if (figureData.hasCustomParts) {
-                        model.setValue(RoomObjectVariableEnum.PetCustomLayerIds, figureData.customLayerIds);
-                        model.setValue(RoomObjectVariableEnum.PetCustomPartsIds, figureData.customPartIds);
-                        model.setValue(RoomObjectVariableEnum.PetCustomPaletteIds, figureData.customPaletteIds);
+                        if (posture) model.setValue(RoomObjectVariableEnum.FigurePosture, posture);
                     }
-
-                    if (posture) model.setValue(RoomObjectVariableEnum.FigurePosture, posture);
-                }
-                break;
-            case RoomObjectCategoryEnum.Room:
-                break;
-        }
-
-        roomObject.setDirection(direction);
-
-        if (!objectData) {
-            objectData = GetObjectDataForFlags(ObjectDataFlagsEnum.Legacy)!;
-            objectData.initializeFromRoomObjectModel(roomObject.model);
-        }
-
-        roomObject.processUpdateMessage(
-            new ObjectDataUpdateMessage(parseInt(objectData.getLegacyString()), objectData),
-        );
-
-        const geometry = new RoomGeometry(scale, new Vector3d(-135, 30, 0), new Vector3d(11, 11, 5));
-
-        roomObject.visualization.update(geometry, 0, true, false);
-
-        if (frameCount > 0) {
-            let i = 0;
-
-            while (i < frameCount) {
-                roomObject.visualization.update(geometry, 0, true, false);
-
-                i++;
+                    break;
+                case RoomObjectCategoryEnum.Room:
+                    break;
             }
+
+            roomObject.setDirection(direction);
+            roomObject.setState(state, 0);
+
+            if (state > -1 || objectData) {
+                const legacyState = objectData?.getLegacyString();
+                const updateState = legacyState?.length ? parseInt(legacyState) : state;
+
+                roomObject.processUpdateMessage(new ObjectDataUpdateMessage(updateState, objectData));
+            }
+
+            geometry = new RoomGeometry(scale, new Vector3d(-135, 30, 0), new Vector3d(11, 11, 5));
+
+            roomObject.visualization.update(geometry, 0, true, false);
+
+            if (frameCount > 0) {
+                let i = 0;
+
+                while (i < frameCount) {
+                    roomObject.visualization.update(geometry, 0, true, false);
+
+                    i++;
+                }
+            }
+
+            return await roomObject.visualization.getImage();
+        } finally {
+            geometry?.dispose();
+
+            if (roomObject) room.removeRoomObject(objectId, objectCategory);
+
+            this._imageObjectIdBank.freeNumber(reservedObjectId);
         }
-
-        const image = await roomObject.visualization.getImage();
-
-        geometry.dispose();
-
-        return image;
     }
 
     public getTemporaryRoom(): IRoom {

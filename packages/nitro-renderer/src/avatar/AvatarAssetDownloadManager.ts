@@ -100,7 +100,7 @@ export class AvatarAssetDownloadManager {
 
         const libraries = this.getAvatarFigurePendingLibraries(container);
 
-        if (libraries.length) for (const library of libraries) await this.downloadLibraryAsync(library);
+        if (libraries.length) await Promise.all(libraries.map(library => this.downloadLibraryAsync(library)));
     }
 
     public setReady(): void {

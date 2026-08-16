@@ -35,9 +35,17 @@ export const ToolbarView = () => {
                     <NitroIcon icon="icon-progression" onClick={_ => toggleMenu('progression')} />
                     <NitroIcon icon="icon-catalog" onClick={() => toggleWindow('catalog')} />
                     <NitroIcon icon="icon-builders-club" />
-                    <NitroIcon icon="icon-inventory" onClick={() => toggleWindow('inventory')} />
-                    <div className="nitro-icon icon-me-circle avatar-image" onClick={_ => toggleMenu('me')} >
-                        <AvatarImage figure={ownFigure} gender={ownGender} direction={3} />
+                    <NitroIcon
+                        icon="icon-inventory"
+                        data-toolbar-transition-target="inventory"
+                        onClick={() => toggleWindow('inventory')}
+                    />
+                    <div
+                        className="nitro-icon icon-me-circle avatar-image"
+                        data-toolbar-transition-target="me-menu"
+                        onClick={_ => toggleMenu('me')}
+                    >
+                        <AvatarImage figure={ownFigure} gender={ownGender} direction={3} crop="face" />
                     </div>
                     <NitroIcon icon="icon-wired" />
                     <NitroIcon icon="icon-camera" />

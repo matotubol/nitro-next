@@ -1,13 +1,14 @@
 import { AvatarBodyPartType, AvatarDirectionAngle, AvatarFigurePartType, AvatarScaleType, AvatarSetType, type IActiveActionData, IAnimationLayerData, type IAvatarDataContainer, IAvatarEffectListener, IAvatarFigureContainer, IAvatarImage, IGraphicAsset, IPartColor, type ISpriteDataContainer } from '@nitrodevco/nitro-api';
 import { AvatarActionStateType, AvatarGeometryType } from '@nitrodevco/nitro-api';
 import type { Filter, ImageLike, RenderTexture } from 'pixi.js';
-import { ColorMatrixFilter, Container, Sprite } from 'pixi.js';
+import { ColorMatrixFilter, Container } from 'pixi.js';
 
 import { GetRenderer, GetTickerTime, TexturePool, TextureUtils } from '#renderer/utils';
 
 import { ActiveActionData } from './actions';
 import type { AssetAliasCollection } from './alias';
 import { AvatarFigureContainer } from './AvatarFigureContainer';
+import type { AvatarImageBodyPartContainer } from './AvatarImageBodyPartContainer';
 import type { AvatarStructure } from './AvatarStructure';
 import { AvatarImageCache } from './cache';
 import type { EffectAssetDownloadManager } from './EffectAssetDownloadManager';
@@ -63,6 +64,7 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
     private _cachedBodyPartsDirection: number = -1;
     private _cachedBodyPartsGeometryType: AvatarGeometryType = AvatarGeometryType.Vertical;
     private _cachedBodyPartsAvatarSet: AvatarSetType = AvatarSetType.Full;
+    private _transientParts: WeakMap<Container, AvatarImageBodyPartContainer[]> = new WeakMap();
 
     constructor(structure: AvatarStructure, assets: AssetAliasCollection, container: AvatarFigureContainer | undefined, scale: AvatarScaleType, effectManager: EffectAssetDownloadManager | undefined = undefined, effectListener: IAvatarEffectListener | undefined = undefined) {
         this._structure = structure;
@@ -73,8 +75,11 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
         if (!container) container = new AvatarFigureContainer('hr-893-45.hd-180-2.ch-210-66.lg-270-82.sh-300-91.wa-2007-.ri-1-');
 
         this._figure = container;
-        this._scale = scale;
-        this._cache = new AvatarImageCache(this._structure, this, this._assets, this._scale);
+
+        const largeScaledSmall = scale === AvatarScaleType.LargeScaledSmall;
+
+        this._scale = largeScaledSmall ? AvatarScaleType.Small : scale;
+        this._cache = new AvatarImageCache(this._structure, this, this._assets, this._scale, largeScaledSmall);
 
         this.setDirection(AvatarSetType.Full, 2);
         this._actions = [];
@@ -177,6 +182,7 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
 
         const parts = this.getBodyParts(setType, this._mainAction.definition.geometryType, this._mainDirection);
         const container = new Container();
+        const transientParts: AvatarImageBodyPartContainer[] = [];
 
         let isCachable = true;
 
@@ -187,6 +193,8 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
             if (!part || !part.image) continue;
 
             isCachable &&= part.isCacheable;
+
+            if (!part.isCacheable) transientParts.push(part);
 
             const point = part.regPoint.clone();
 
@@ -199,10 +207,12 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
             const partContainer = new Container();
 
             partContainer.addChild(part.image);
-            partContainer.position.set(point.x, point.y);
+            partContainer.position.set(Math.trunc(point.x), Math.trunc(point.y));
 
             container.addChild(partContainer);
         }
+
+        if (transientParts.length) this._transientParts.set(container, transientParts);
 
         if (this._avatarSpriteData) {
             const filters: Filter[] = [];
@@ -216,97 +226,66 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
             container.filters = filters;
         }
 
-        GetRenderer().render({
-            target: this._image,
-            container,
-            clear: true
-        });
+        try {
+            GetRenderer().render({
+                target: this._image,
+                container,
+                clear: true
+            });
 
-        if (cacheKey && isCachable) {
-            const imageClone = TexturePool.createRenderTexture(avatarCanvas.width, avatarCanvas.height);
+            this._changes = false;
 
-            if (imageClone) {
-                GetRenderer().render({
-                    target: imageClone,
-                    container,
-                    clear: true
-                });
+            if (cacheKey && isCachable) {
+                const imageClone = TexturePool.createRenderTexture(avatarCanvas.width, avatarCanvas.height);
 
-                this.cacheFullImage(cacheKey, imageClone);
+                if (imageClone) {
+                    try {
+                        GetRenderer().render({
+                            target: imageClone,
+                            container,
+                            clear: true
+                        });
+
+                        this.cacheFullImage(cacheKey, imageClone);
+                    } catch (error) {
+                        TexturePool.releaseTexture(imageClone);
+
+                        throw error;
+                    }
+                }
             }
+        } finally {
+            this.disposeRenderedImageContainer(container);
         }
 
         return this._image;
     }
 
     public async getCroppedImageAsync(setType: AvatarSetType, hightlight: boolean, _scale: number = 1): Promise<ImageLike | undefined> {
-        if (!this._mainAction?.definition) return undefined;
+        const container = this.createCroppedImageContainer(setType, _scale);
 
-        if (!this._actionsSorted) this.endActionAppends();
+        if (!container) return undefined;
 
-        const avatarCanvas = this._structure.getCanvas(this._scale, this._mainAction.definition.geometryType);
-
-        if (!avatarCanvas) return undefined;
-
-        const parts = this.getBodyParts(setType, this._mainAction.definition.geometryType, this._mainDirection);
-        const container = new Container();
-
-        let isCachable = true;
-
-        for (let i = parts.length - 1; i >= 0; i--) {
-            const set = parts[i];
-            const part = this._cache.getImageContainer(set, this._frameCounter);
-
-            if (!part || !part.image) continue;
-
-            isCachable &&= part.isCacheable;
-
-            const point = part.regPoint.clone();
-
-            point.x += avatarCanvas.offset.x;
-            point.y += avatarCanvas.offset.y;
-
-            point.x += avatarCanvas.regPoint.x;
-            point.y += avatarCanvas.regPoint.y;
-
-            const partContainer = new Container();
-
-            partContainer.addChild(part.image);
-            partContainer.position.set(point.x, point.y);
-
-            container.addChild(partContainer);
+        try {
+            return await TextureUtils.generateImage(container);
+        } finally {
+            this.disposeCroppedImageContainer(container);
         }
-
-        if (this._avatarSpriteData) {
-            const filters: Filter[] = [];
-
-            if (!container.filters) container.filters = [];
-
-            if (this._avatarSpriteData.colorTransform) filters.push(this._avatarSpriteData.colorTransform);
-
-            //if (this._avatarSpriteData.paletteIsGrayscale) filters.push(this.getGrayscaleFilter(), new PaletteMapFilter(this._avatarSpriteData.reds, PaletteMapFilter.CHANNEL_RED));
-
-            container.filters = filters;
-        }
-
-        const texture = TexturePool.createRenderTexture(avatarCanvas.width, avatarCanvas.height);
-
-        if (!texture) return undefined;
-
-        GetRenderer().render({
-            target: texture,
-            container,
-            clear: true
-        });
-
-        const image = await TextureUtils.generateImage(texture);
-
-        TexturePool.releaseTexture(texture);
-
-        return image;
     }
 
     public async getCroppedBase64Async(setType: AvatarSetType, hightlight: boolean, _scale: number = 1): Promise<string | undefined> {
+        const container = this.createCroppedImageContainer(setType, _scale);
+
+        if (!container) return undefined;
+
+        try {
+            return await GetRenderer().extract.base64(container);
+        } finally {
+            this.disposeCroppedImageContainer(container);
+        }
+    }
+
+    private createCroppedImageContainer(setType: AvatarSetType, scale: number): Container | undefined {
         if (!this._mainAction?.definition) return undefined;
 
         if (!this._actionsSorted) this.endActionAppends();
@@ -317,8 +296,7 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
 
         const parts = this.getBodyParts(setType, this._mainAction.definition.geometryType, this._mainDirection);
         const container = new Container();
-
-        let isCachable = true;
+        const transientParts: AvatarImageBodyPartContainer[] = [];
 
         for (let i = parts.length - 1; i >= 0; i--) {
             const set = parts[i];
@@ -326,23 +304,19 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
 
             if (!part || !part.image) continue;
 
-            isCachable &&= part.isCacheable;
+            if (!part.isCacheable) transientParts.push(part);
 
             const point = part.regPoint.clone();
-
-            point.x += avatarCanvas.offset.x;
-            point.y += avatarCanvas.offset.y;
-
-            point.x += avatarCanvas.regPoint.x;
-            point.y += avatarCanvas.regPoint.y;
 
             const partContainer = new Container();
 
             partContainer.addChild(part.image);
-            partContainer.position.set(point.x, point.y);
+            partContainer.position.set(Math.trunc(point.x), Math.trunc(point.y));
 
             container.addChild(partContainer);
         }
+
+        if (transientParts.length) this._transientParts.set(container, transientParts);
 
         if (this._avatarSpriteData) {
             const filters: Filter[] = [];
@@ -356,21 +330,31 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
             container.filters = filters;
         }
 
-        const texture = TexturePool.createRenderTexture(avatarCanvas.width, avatarCanvas.height);
+        if (Number.isFinite(scale) && scale > 0 && scale !== 1) container.scale.set(scale);
 
-        if (!texture) return undefined;
+        return container;
+    }
 
-        GetRenderer().render({
-            target: texture,
-            container,
-            clear: true
-        });
+    private disposeCroppedImageContainer(container: Container): void {
+        this.disposeRenderedImageContainer(container);
+    }
 
-        const base64 = await GetRenderer().extract.base64(new Sprite(texture));
+    private disposeRenderedImageContainer(container: Container): void {
+        for (const partContainer of container.removeChildren()) {
+            if (partContainer instanceof Container) partContainer.removeChildren();
 
-        TexturePool.releaseTexture(texture);
+            partContainer.destroy();
+        }
 
-        return base64;
+        const transientParts = this._transientParts.get(container);
+
+        if (transientParts) {
+            for (const part of transientParts) part.dispose();
+
+            this._transientParts.delete(container);
+        }
+
+        container.destroy();
     }
 
     public initActionAppends(): void {
@@ -552,7 +536,14 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
     }
 
     private getFullImage(key: string): RenderTexture | undefined {
-        return this._fullImageCache.get(key);
+        const texture = this._fullImageCache.get(key);
+
+        if (!texture) return undefined;
+
+        this._fullImageCache.delete(key);
+        this._fullImageCache.set(key, texture);
+
+        return texture;
     }
 
     private cacheFullImage(key: string, texture: RenderTexture): void {
@@ -565,6 +556,18 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
         }
 
         this._fullImageCache.set(key, texture);
+
+        while (this._fullImageCache.size > AvatarImage.MAX_IMAGE_CACHE) {
+            const oldestKey = this._fullImageCache.keys().next().value;
+
+            if (oldestKey === undefined) break;
+
+            const oldest = this._fullImageCache.get(oldestKey);
+
+            this._fullImageCache.delete(oldestKey);
+
+            if (oldest) TexturePool.releaseTexture(oldest);
+        }
     }
 
     private resetActions(): boolean {

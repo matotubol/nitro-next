@@ -2,9 +2,10 @@
 
 import type { AvatarBodyPartType, AvatarSetType, IActiveActionData, IAvatarCanvas, IAvatarImage } from '@nitrodevco/nitro-api';
 import { AvatarDirectionAngle, AvatarFigurePartType, AvatarGeometryType, AvatarScaleType } from '@nitrodevco/nitro-api';
+import type { RenderTexture, TextureSource } from 'pixi.js';
 import { Container, Matrix, Point, Rectangle, Sprite, Texture } from 'pixi.js';
 
-import { GetTickerTime } from '#renderer/utils';
+import { GetRenderer, GetTickerTime, TexturePool } from '#renderer/utils';
 
 import type { AssetAliasCollection } from '../alias';
 import { AvatarAnimationLayerData } from '../animation';
@@ -30,12 +31,14 @@ export class AvatarImageCache {
     private _unionImages: ImageData[] = [];
     private _matrix: Matrix = new Matrix();
     private _disposed: boolean = false;
+    private _largeScaledSmall: boolean;
 
-    constructor(structure: AvatarStructure, avatar: IAvatarImage, assets: AssetAliasCollection, scale: AvatarScaleType) {
+    constructor(structure: AvatarStructure, avatar: IAvatarImage, assets: AssetAliasCollection, scale: AvatarScaleType, largeScaledSmall: boolean = false) {
         this._structure = structure;
         this._avatar = avatar;
         this._assets = assets;
         this._scale = scale;
+        this._largeScaledSmall = largeScaledSmall;
     }
 
     public dispose(): void {
@@ -258,21 +261,22 @@ export class AvatarImageCache {
                 }
             }
 
-            let assetName = `${this._scale}_${assetPartDefinition}_${partType}_${partId}_${assetDirection}_${frameNumber}`;
+            const assetScale = this._largeScaledSmall ? AvatarScaleType.Large : this._scale;
+            let assetName = `${assetScale}_${assetPartDefinition}_${partType}_${partId}_${assetDirection}_${frameNumber}`;
             let asset = this._assets.getAsset(assetName);
 
             if (!asset) {
-                assetName = `${this._scale}_${assetPartDefinition}_${partType}_${partId}_${assetDirection}_0`;
+                assetName = `${assetScale}_${assetPartDefinition}_${partType}_${partId}_${assetDirection}_0`;
                 asset = this._assets.getAsset(assetName);
             }
 
             if (!asset) {
-                assetName = `${this._scale}_${this._defaultAction}_${partType}_${partId}_${assetDirection}_${frameNumber}`;
+                assetName = `${assetScale}_${this._defaultAction}_${partType}_${partId}_${assetDirection}_${frameNumber}`;
                 asset = this._assets.getAsset(assetName);
             }
 
             if (!asset) {
-                assetName = `${this._scale}_${this._defaultAction}_${partType}_${partId}_${assetDirection}_0`;
+                assetName = `${assetScale}_${this._defaultAction}_${partType}_${partId}_${assetDirection}_0`;
                 asset = this._assets.getAsset(assetName);
             }
 
@@ -297,7 +301,14 @@ export class AvatarImageCache {
 
         const imageData = this.createUnionImage(this._unionImages, isFlipped);
         const canvasOffset = (this._scale === AvatarScaleType.Large) ? (this._canvas.height - 16) : (this._canvas.height - 8);
-        const offset = new Point(-(imageData.regPoint.x), (canvasOffset - imageData.regPoint.y));
+        const regPoint = imageData.regPoint.clone();
+
+        if (this._largeScaledSmall) {
+            regPoint.x /= 2;
+            regPoint.y /= 2;
+        }
+
+        const offset = new Point(-(regPoint.x), (canvasOffset - regPoint.y));
 
         if (isFlipped && (assetPartDefinition !== 'lay')) offset.x = (offset.x + ((this._scale === AvatarScaleType.Large) ? 67 : 31));
 
@@ -313,7 +324,20 @@ export class AvatarImageCache {
 
         if (!imageData.container) return undefined;
 
-        return new AvatarImageBodyPartContainer(imageData.container, offset, isCacheable);
+        let bodyPart = imageData.container;
+        let ownedTexture: RenderTexture | undefined;
+
+        if (this._largeScaledSmall) {
+            ownedTexture = this.resampleBodyPart(bodyPart, imageData.rect.width, imageData.rect.height);
+
+            if (ownedTexture) {
+                bodyPart = new Container({ children: [new Sprite(ownedTexture)] });
+            } else {
+                bodyPart.scale.set(0.5);
+            }
+        }
+
+        return new AvatarImageBodyPartContainer(bodyPart, offset, isCacheable, ownedTexture);
     }
 
     private convertColorToHex(k: number): string {
@@ -322,6 +346,43 @@ export class AvatarImageCache {
             _local_2 = ('0' + _local_2);
         }
         return _local_2;
+    }
+
+    /** Matches Flash's smooth, rounded BitmapData resample used by the h_50 avatar scale. */
+    private resampleBodyPart(container: Container, width: number, height: number): RenderTexture | undefined {
+        const targetWidth = Math.max(1, Math.round(width * 0.5));
+        const targetHeight = Math.max(1, Math.round(height * 0.5));
+        const target = TexturePool.createRenderTexture(targetWidth, targetHeight);
+
+        if (!target) return undefined;
+
+        const previousScaleModes = new Map<TextureSource, TextureSource['scaleMode']>();
+
+        for (const child of container.children) {
+            if (!(child instanceof Sprite) || child.texture === Texture.EMPTY) continue;
+
+            const source = child.texture.source;
+
+            if (!previousScaleModes.has(source)) previousScaleModes.set(source, source.scaleMode);
+
+            source.scaleMode = 'linear';
+        }
+
+        container.scale.set(targetWidth / width, targetHeight / height);
+
+        try {
+            GetRenderer().render({ target, container, clear: true });
+        } catch (error) {
+            TexturePool.releaseTexture(target);
+
+            throw error;
+        } finally {
+            for (const [source, scaleMode] of previousScaleModes) source.scaleMode = scaleMode;
+
+            container.destroy({ children: true });
+        }
+
+        return target;
     }
 
     private createUnionImage(images: ImageData[], isFlipped: boolean): ImageData {

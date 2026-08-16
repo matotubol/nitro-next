@@ -4,5 +4,6 @@ export * from './useCatalogNodeActions';
 export * from './useCatalogOfferActions';
 export * from './useCatalogOfferProduct';
 export * from './useCatalogPageRequest';
+export * from './useCatalogProductPreview';
 export * from './useCatalogVisibility';
 export * from './useProductIconUrl';
