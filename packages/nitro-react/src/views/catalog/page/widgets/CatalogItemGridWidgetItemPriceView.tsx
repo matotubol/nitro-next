@@ -1,81 +1,75 @@
-import { CatalogPricingTypeEnum, IPurchasableOffer } from "@nitrodevco/nitro-api"
+import { IPurchasableOffer } from '@nitrodevco/nitro-api';
 
-import { BitmapText, NitroIcon } from "#base/theme";
+import { BitmapText, NitroIcon } from '#base/theme';
+
+import {
+    getCatalogOfferPriceEntries,
+    getCatalogPriceIcon,
+} from './catalogPriceUtilities';
 
 type CatalogItemGridWidgetItemPriceViewProps = {
     offer: IPurchasableOffer;
-}
+};
 
 type PriceLineProps = {
     amount: number;
     icon: string;
-    className: string;
+    single: boolean;
+    top: number;
     plus?: boolean;
-}
+};
 
 const PriceLine = (props: PriceLineProps) => {
-    const { amount, icon, className, plus = false } = props;
+    const { amount, icon, single, top, plus = false } = props;
 
     return (
-        <div className={`absolute right-0.5 z-10 flex h-[19px] items-start justify-end gap-px ${className}`}>
-            {plus &&
+        <div className="catalog-grid-price-line" style={{ top }}>
+            {plus && (
                 <BitmapText
                     recipe="bold-12"
                     color="#000000"
                     align="center"
-                    className="relative block h-[17px] w-2 shrink-0">
+                    className="catalog-grid-price-text catalog-grid-price-plus"
+                >
                     +
-                </BitmapText>}
+                </BitmapText>
+            )}
             <BitmapText
                 recipe="bold-12"
                 color="#000000"
                 align="center"
                 autoWidth
-                className="relative block h-[17px] shrink-0">
+                className="catalog-grid-price-text"
+            >
                 {amount}
             </BitmapText>
-            <span className="relative mt-1 size-3.5 shrink-0">
-                <NitroIcon icon={icon} className="absolute left-px top-px" />
+            <span className={`catalog-grid-price-icon${single ? ' is-single' : ''}`}>
+                <NitroIcon icon={icon} aria-hidden="true" />
             </span>
         </div>
     );
-}
+};
 
-export const CatalogItemGridWidgetItemPriceView = (props: CatalogItemGridWidgetItemPriceViewProps) => {
+export const CatalogItemGridWidgetItemPriceView = (
+    props: CatalogItemGridWidgetItemPriceViewProps,
+) => {
     const { offer } = props;
+    const prices = getCatalogOfferPriceEntries(offer);
 
-    if (!offer || offer.pricingType === CatalogPricingTypeEnum.None) return null;
+    if (!prices.length) return null;
 
-    if (offer.pricingType === CatalogPricingTypeEnum.CreditsActivityPoints)
-        return (
-            <>
-                <PriceLine
-                    amount={offer.priceInCredits}
-                    icon="catalog-small-coin"
-                    className="top-9"
-                />
-                <PriceLine
-                    amount={offer.priceInActivityPoints}
-                    icon="catalog-small-diamond"
-                    className="top-[51px]"
-                    plus
-                />
-            </>
-        );
-
-    return (
+    return prices.map((price, index) => (
         <PriceLine
-            amount={
-                offer.pricingType === CatalogPricingTypeEnum.Credits
-                    ? offer.priceInCredits
-                    : offer.priceInActivityPoints
+            key={
+                price.kind === 'activityPoints'
+                    ? `${price.kind}-${price.activityPointType}`
+                    : price.kind
             }
-            icon={
-                offer.pricingType === CatalogPricingTypeEnum.Credits
-                    ? 'catalog-small-coin'
-                    : 'catalog-small-diamond'
-            }
-            className="top-9"
+            amount={price.amount}
+            icon={getCatalogPriceIcon(price)}
+            single={prices.length === 1}
+            top={36 + index * 15}
+            plus={index > 0}
         />
-    );
-}
+    ));
+};

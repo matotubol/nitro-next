@@ -112,12 +112,20 @@ export class RoomContentLoader implements IRoomContentLoader {
         return this.removeColorIndex(this._activeObjectTypes.get(typeId) ?? '');
     }
 
+    public getFurnitureFloorTypeIdForName(name: string): number {
+        return this._activeObjectTypeIds.get(name) ?? -1;
+    }
+
     public getFurnitureWallNameForTypeId(typeId: number, extra?: string): string {
         let type = this._wallItemTypes.get(typeId);
 
         if (type === 'poster' && extra) type = `${type} ${extra}`;
 
         return this.removeColorIndex(type ?? '');
+    }
+
+    public getFurnitureWallTypeIdForName(name: string): number {
+        return this._wallItemTypeIds.get(name) ?? -1;
     }
 
     public getFurnitureFloorColorIndex(typeId: number): number {

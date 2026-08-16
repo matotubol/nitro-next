@@ -337,4 +337,16 @@
         height: 20px;
         background-position: -433px -40px;
     }
+
+    &.icon-silver-big {
+        width: 20px;
+        height: 20px;
+        background-position: -512px -39px;
+    }
+
+    &.icon-silver-small {
+        width: 11px;
+        height: 11px;
+        background-position: -385px -1px;
+    }
 }

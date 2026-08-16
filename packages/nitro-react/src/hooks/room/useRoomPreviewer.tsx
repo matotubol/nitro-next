@@ -1,4 +1,4 @@
-import { FurnitureUsagePolicyEnum, IObjectData, IRoom, IRoomObjectController, IVector3D, LegacyDataType, RoomGeometryScaleType, RoomId, RoomObjectCategoryEnum, RoomObjectUserTypeName, RoomObjectVariableEnum, Vector3d } from "@nitrodevco/nitro-api";
+import { FurnitureUsagePolicyEnum, IObjectData, IRoom, IRoomObjectController, IVector3D, LegacyDataType, RoomGeometryScaleType, RoomId, RoomObjectCategoryEnum, RoomObjectUserType, RoomObjectUserTypeName, RoomObjectVariableEnum, Vector3d } from "@nitrodevco/nitro-api";
 import { GetRoomEngine, GetTicker, TextureUtils } from "@nitrodevco/nitro-renderer";
 import { PointData, Rectangle, Ticker } from "pixi.js";
 import { RefObject, useEffect, useRef, useState } from "react";
@@ -13,6 +13,9 @@ const PREVIEW_WALL_ITEM_MIRRORED_DIRECTION: number = 180;
 const ALLOWED_IMAGE_CUT: number = 0.25;
 const PREVIEW_CAMERA_DISTANCE: number = 30;
 const AUTOMATIC_STATE_CHANGE_INTERVAL: number = 2500;
+const DEFAULT_PREVIEW_FLOOR_TYPE = '110';
+const DEFAULT_PREVIEW_WALL_TYPE = '99999';
+const DEFAULT_PREVIEW_LANDSCAPE_TYPE = '1';
 
 type RoomPreviewerOptions = {
     centerWallItems?: boolean;
@@ -239,6 +242,19 @@ export const useRoomPreviewer = (
         addViewOffset.current = { x: point.x, y: point.y };
     };
 
+    const updateRoomPreviewPlaneTypes = (
+        floorType?: string,
+        wallType?: string,
+        landscapeType?: string,
+    ) => roomRef.current?.updateRoomPlaneType(floorType, wallType, landscapeType) ?? false;
+
+    const resetRoomPreviewPlaneTypes = () =>
+        updateRoomPreviewPlaneTypes(
+            DEFAULT_PREVIEW_FLOOR_TYPE,
+            DEFAULT_PREVIEW_WALL_TYPE,
+            DEFAULT_PREVIEW_LANDSCAPE_TYPE,
+        );
+
     const validatePreviewSize = (point: PointData) => {
         const room = roomRef.current;
 
@@ -396,6 +412,33 @@ export const useRoomPreviewer = (
         return -1;
     };
 
+    const addAvatarIntoRoom = (figure: string, effect: number = 0) => {
+        const room = roomRef.current;
+
+        if (!room || !figure) return -1;
+
+        resetRoomPreview(false);
+
+        currentObjectCategory.current = RoomObjectCategoryEnum.Unit;
+
+        if (!room.addRoomObjectUser(PREVIEW_OBJECT_ID, PREVIEW_OBJECT_LOCATION, new Vector3d(90), 135, RoomObjectUserType.User, figure)) {
+            currentObjectCategory.current = RoomObjectCategoryEnum.Minimum;
+            return -1;
+        }
+
+        room.updateRoomObjectUserGesture(PREVIEW_OBJECT_ID, 1);
+        room.updateRoomObjectUserEffect(PREVIEW_OBJECT_ID, effect);
+        room.updateRoomObjectUserPosture(PREVIEW_OBJECT_ID, 'std');
+
+        currentPreviewRectangle.current = null;
+        needsZoomOut.current = false;
+        automaticStateChange.current = false;
+        setCanRotatePreview(false);
+        updateRoomPreview();
+
+        return PREVIEW_OBJECT_ID;
+    };
+
     useEffect(() => {
         const room = GetRoomEngine().createRoom(RoomId.makeRoomPreviewerId(roomId));
 
@@ -408,7 +451,7 @@ export const useRoomPreviewer = (
 
             if (map.mapData) room.applyRoomMap(map.mapData);
 
-            room.updateRoomPlaneType('110', '99999', undefined);
+            resetRoomPreviewPlaneTypes();
         }
 
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -522,9 +565,12 @@ export const useRoomPreviewer = (
         canRotate,
         addFurnitureIntoRoom,
         addWallItemIntoRoom,
+        addAvatarIntoRoom,
         resetRoomPreview,
         rotatePreviewObject,
         changePreviewObjectState,
-        setAddViewOffset
+        setAddViewOffset,
+        updateRoomPreviewPlaneTypes,
+        resetRoomPreviewPlaneTypes
     };
 };

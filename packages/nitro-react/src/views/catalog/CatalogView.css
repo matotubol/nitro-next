@@ -317,6 +317,42 @@
     min-height: 0;
 }
 
+.catalog-grid-price-line {
+    position: absolute;
+    right: 2px;
+    z-index: 10;
+    display: flex;
+    height: 19px;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 1px;
+}
+
+.catalog-grid-price-text {
+    position: relative;
+    display: block;
+    height: 17px;
+    margin-top: 2px;
+    flex: 0 0 auto;
+}
+
+.catalog-grid-price-plus {
+    width: 10px;
+}
+
+.catalog-grid-price-icon {
+    display: grid;
+    width: 14px;
+    height: 15px;
+    margin-top: 4px;
+    flex: 0 0 auto;
+    place-items: start center;
+}
+
+.catalog-grid-price-icon.is-single {
+    width: 15px;
+}
+
 .catalog-purchase-region {
     position: relative;
     flex: 0 0 55px;
@@ -348,4 +384,240 @@
     left: 10px;
     height: 19px;
     overflow: hidden;
+}
+
+.catalog-purchase-buttons {
+    position: absolute;
+    right: 5px;
+    bottom: 3px;
+    left: 5px;
+    display: flex;
+    height: 24px;
+    justify-content: space-between;
+}
+
+.catalog-purchase-gift-button {
+    width: 170px;
+    min-width: 170px;
+    height: 24px;
+    min-height: 24px;
+    padding: 0 8px;
+    overflow: hidden;
+}
+
+.catalog-purchase-gift-label {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 17px;
+    flex: 0 0 auto;
+}
+
+.catalog-purchase-buy-button {
+    position: relative;
+    width: 170px;
+    min-width: 170px;
+    height: 24px;
+    min-height: 24px;
+    padding: 0;
+}
+
+.catalog-purchase-buy-label {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    left: 5px;
+    height: 17px;
+}
+
+.catalog-purchase-modal-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    overflow: hidden;
+    pointer-events: auto;
+}
+
+.catalog-purchase-confirmation {
+    top: 50%;
+    left: 50%;
+    width: 325px;
+    height: 257px;
+    margin-top: -129px;
+    margin-left: -163px;
+}
+
+.catalog-purchase-confirmation-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+}
+
+.catalog-purchase-confirmation-product {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 100%;
+    height: 171px;
+    min-height: 171px;
+}
+
+.catalog-purchase-confirmation-image {
+    position: absolute;
+    top: 12px;
+    left: 10px;
+    display: grid;
+    width: 126px;
+    min-width: 126px;
+    height: 152px;
+    margin: 0;
+    place-items: center;
+    overflow: hidden;
+}
+
+.catalog-purchase-confirmation-properties {
+    position: absolute;
+    top: 8px;
+    left: 143px;
+    display: block;
+    width: 176px;
+    height: 116px;
+}
+
+.catalog-purchase-confirmation-name {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    width: 177px;
+    height: 35px;
+    min-height: 35px;
+    overflow: hidden;
+}
+
+.catalog-purchase-confirmation-cost {
+    position: absolute;
+    top: 42px;
+    left: 0;
+    display: flex;
+    width: 176px;
+    height: 22px;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin: 0;
+    gap: 4px;
+    font-family: Ubuntu, sans-serif;
+    font-size: 14px;
+    line-height: 19px;
+}
+
+.catalog-purchase-confirmation-cost-label {
+    height: 19px;
+    padding-top: 1px;
+    overflow: hidden;
+}
+
+.catalog-purchase-confirmation-prices {
+    display: flex;
+    height: 22px;
+    flex: 0 0 auto;
+    align-items: flex-start;
+    padding: 0 2px 0 1px;
+    gap: 1px;
+}
+
+.catalog-purchase-confirmation-price {
+    display: flex;
+    height: 22px;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 1px;
+}
+
+.catalog-purchase-confirmation-price-amount {
+    position: relative;
+    display: block;
+    height: 19px;
+    margin-top: 1px;
+    flex: 0 0 auto;
+}
+
+.catalog-purchase-confirmation-price-icon {
+    display: grid;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+    place-items: center;
+}
+
+.catalog-purchase-confirmation-buttons {
+    position: absolute;
+    top: 189px;
+    left: 13px;
+    display: flex;
+    width: 296px;
+    height: 27px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+}
+
+.catalog-purchase-confirmation-button {
+    position: relative;
+    display: flex;
+    width: 110px;
+    min-width: 110px;
+    height: 27px;
+    min-height: 27px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.catalog-purchase-confirmation-button-label {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 17px;
+    flex: 0 0 auto;
+}
+
+.catalog-purchase-confirmation-button:active
+    .catalog-purchase-confirmation-button-label {
+    transform: translateY(1px);
+}
+
+.catalog-purchase-alert {
+    top: 50%;
+    left: 50%;
+    width: 300px;
+    height: 150px;
+    margin-top: -75px;
+    margin-left: -150px;
+}
+
+.catalog-purchase-alert-content {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 12px 10px;
+}
+
+.catalog-purchase-alert-message {
+    width: 100%;
+    overflow: hidden;
+    font-family: Ubuntu, sans-serif;
+    font-size: 13px;
+    line-height: 17px;
+    text-align: center;
+}
+
+.catalog-purchase-alert-button {
+    width: 110px;
+    height: 27px;
 }

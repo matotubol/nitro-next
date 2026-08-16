@@ -42,6 +42,8 @@ export type BitmapTextProps = {
     color: string;
     align?: BitmapTextAlign;
     autoWidth?: boolean;
+    wrap?: boolean;
+    lineHeight?: number;
     shadowColor?: string;
     shadowX?: number;
     shadowY?: number;

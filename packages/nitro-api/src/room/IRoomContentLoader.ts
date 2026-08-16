@@ -17,7 +17,9 @@ export interface IRoomContentLoader {
     getPlaceholderName(type: string): string;
     getCategoryForType(type: string): number;
     getFurnitureFloorNameForTypeId(typeId: number): string;
+    getFurnitureFloorTypeIdForName(name: string): number;
     getFurnitureWallNameForTypeId(typeId: number, extra?: string): string;
+    getFurnitureWallTypeIdForName(name: string): number;
     getFurnitureFloorColorIndex(typeId: number): number;
     getFurnitureWallColorIndex(typeId: number): number;
     getImage(name: string): HTMLImageElement;

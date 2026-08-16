@@ -1,20 +1,17 @@
 import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
-// TODO(PointsByCategoryId: ImmutableDictionary<int, int>): Unknown type 'ImmutableDictionary<int, int>'. Add override mapping.
-
 export type ActivityPointsMessageType = {
-  pointsByCategoryId: any;
+    pointsByCategoryId: Record<number, number>;
 };
 
-export class ActivityPointsMessage implements IIncomingPacket<ActivityPointsMessageType>
-{
-  public parse(wrapper: IMessageDataWrapper): ActivityPointsMessageType
-  {
+export class ActivityPointsMessage implements IIncomingPacket<ActivityPointsMessageType> {
+    public parse(wrapper: IMessageDataWrapper): ActivityPointsMessageType {
+        const pointsByCategoryId: Record<number, number> = {};
+        const count = wrapper.readInt();
 
-    const packet: ActivityPointsMessageType = {
-      pointsByCategoryId: undefined as any, // Unknown type 'ImmutableDictionary<int, int>'. Add override mapping.
-    };
+        for (let index = 0; index < count; index++)
+            pointsByCategoryId[wrapper.readInt()] = wrapper.readInt();
 
-    return packet;
-  }
+        return { pointsByCategoryId };
+    }
 }

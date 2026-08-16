@@ -1,8 +1,4 @@
-import type {
-    BitmapFontMetrics,
-    BitmapTextRecipe,
-    LoadedBitmapFont,
-} from './types';
+import type { BitmapFontMetrics, BitmapTextRecipe, LoadedBitmapFont } from './types';
 
 type BitmapFontSource = {
     image: string;
@@ -37,10 +33,19 @@ const fontCache = new Map<BitmapTextRecipe, Promise<LoadedBitmapFont>>();
 const loadImage = (url: string) =>
     new Promise<HTMLImageElement>((resolve, reject) => {
         const image = new Image();
+        const clearHandlers = () => {
+            image.onload = null;
+            image.onerror = null;
+        };
 
-        image.onload = () => resolve(image);
-        image.onerror = () =>
+        image.onload = () => {
+            clearHandlers();
+            resolve(image);
+        };
+        image.onerror = () => {
+            clearHandlers();
             reject(new Error(`Unable to load bitmap font atlas: ${url}`));
+        };
         image.src = url;
     });
 

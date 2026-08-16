@@ -1,6 +1,14 @@
-import { CatalogPricingModelEnum, CatalogPricingTypeEnum, CatalogTypeEnum, FurnitureTypeEnum, ICatalogOffer, IProduct, IPurchasableOffer } from "@nitrodevco/nitro-api";
+import {
+    CatalogPricingModelEnum,
+    CatalogPricingTypeEnum,
+    CatalogTypeEnum,
+    FurnitureTypeEnum,
+    ICatalogOffer,
+    IProduct,
+    IPurchasableOffer,
+} from '@nitrodevco/nitro-api';
 
-import { useCatalogSelectors, useFurnitureDataSelector } from "#base/context";
+import { useCatalogSelectors, useFurnitureDataSelector } from '#base/context';
 
 export const useCatalogOfferActions = () => {
     const { catalogType } = useCatalogSelectors();
@@ -15,33 +23,57 @@ export const useCatalogOfferActions = () => {
         }
 
         return undefined;
-    }
+    };
 
     const stripAddonProducts = (products: IProduct[]) => {
         if (products.length === 1) return products;
 
-        return products.filter(product => ((product.productType !== FurnitureTypeEnum.Badge) && (product.productType !== FurnitureTypeEnum.Effect) && (product.classId !== 108)));
-    }
+        return products.filter(
+            product =>
+                product.productType !== FurnitureTypeEnum.Badge &&
+                product.productType !== FurnitureTypeEnum.Effect &&
+                product.classId !== 108,
+        );
+    };
 
     const getPricingModelForProducts = (products: IProduct[]) => {
         const stripped = stripAddonProducts(products);
 
-        if (stripped.length === 1) return stripped[0].productCount === 1 ? CatalogPricingModelEnum.Single : CatalogPricingModelEnum.Multi;
+        if (stripped.length === 1)
+            return stripped[0].productCount === 1
+                ? CatalogPricingModelEnum.Single
+                : CatalogPricingModelEnum.Multi;
 
         if (stripped.length > 1) return CatalogPricingModelEnum.Bundle;
 
         return CatalogPricingModelEnum.Unknown;
-    }
+    };
 
     const getPricingTypeForOffer = (offer: ICatalogOffer) => {
-        if (offer.costCredits > 0 && offer.costCurrency > 0) return CatalogPricingTypeEnum.CreditsActivityPoints;
+        const priceTypeCount =
+            Number(offer.costCredits > 0) +
+            Number(offer.costCurrency > 0) +
+            Number(offer.costSilver > 0);
+
+        if (priceTypeCount > 1) {
+            if (
+                offer.costCredits > 0 &&
+                offer.costCurrency > 0 &&
+                offer.costSilver === 0
+            )
+                return CatalogPricingTypeEnum.CreditsActivityPoints;
+
+            return CatalogPricingTypeEnum.Mixed;
+        }
 
         if (offer.costCredits > 0) return CatalogPricingTypeEnum.Credits;
 
         if (offer.costCurrency > 0) return CatalogPricingTypeEnum.ActivityPoints;
 
+        if (offer.costSilver > 0) return CatalogPricingTypeEnum.Silver;
+
         return CatalogPricingTypeEnum.None;
-    }
+    };
 
     const getOfferProduct = (offer: IPurchasableOffer) => {
         if (!offer.products.length) return undefined;
@@ -49,7 +81,7 @@ export const useCatalogOfferActions = () => {
         if (offer.products.length === 1) return offer.products[0];
 
         return stripAddonProducts(offer.products)?.[0] ?? undefined;
-    }
+    };
 
     const processOffer = (offer: ICatalogOffer) => {
         if (!offer || !offer.products.length) return undefined;
@@ -60,7 +92,10 @@ export const useCatalogOfferActions = () => {
         let badgeCode: string | undefined = undefined;
 
         for (const product of offer.products) {
-            const furnitureData = getFurnitureData(product.spriteId, product.productType);
+            const furnitureData = getFurnitureData(
+                product.spriteId,
+                product.productType,
+            );
 
             if (!furnitureData) continue;
 
@@ -73,10 +108,11 @@ export const useCatalogOfferActions = () => {
                 furnitureData,
                 isUnique: product.isUnique,
                 uniqueSize: product.uniqueSize,
-                uniqueLeft: product.uniqueRemaining
+                uniqueLeft: product.uniqueRemaining,
             });
 
-            if (product.productType === FurnitureTypeEnum.Badge) badgeCode = product.extraParam;
+            if (product.productType === FurnitureTypeEnum.Badge)
+                badgeCode = product.extraParam;
         }
 
         const purchasableOffer = {
@@ -86,6 +122,7 @@ export const useCatalogOfferActions = () => {
             localizationId: offer.localizationId,
             priceInCredits: offer.costCredits,
             priceInActivityPoints: offer.costCurrency,
+            priceInSilver: offer.costSilver,
             activityPointType: offer.costCurrencyType,
             giftable: offer.canGift,
             isRentOffer: offer.rentable,
@@ -94,13 +131,20 @@ export const useCatalogOfferActions = () => {
             bundlePurchaseAllowed: offer.canBundle,
             isLazy: false,
             page: undefined,
-            badgeCode: badgeCode
+            badgeCode: badgeCode,
         } as IPurchasableOffer;
 
-        if (!(catalogType == CatalogTypeEnum.Normal || (purchasableOffer.pricingModel !== CatalogPricingModelEnum.Bundle && purchasableOffer.pricingModel !== CatalogPricingModelEnum.Multi))) return undefined;
+        if (
+            !(
+                catalogType == CatalogTypeEnum.Normal ||
+                (purchasableOffer.pricingModel !== CatalogPricingModelEnum.Bundle &&
+                    purchasableOffer.pricingModel !== CatalogPricingModelEnum.Multi)
+            )
+        )
+            return undefined;
 
         return purchasableOffer;
-    }
+    };
 
     return { getOfferProduct, processOffer };
-}
+};

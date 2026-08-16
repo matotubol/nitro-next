@@ -1,7 +1,7 @@
-import { CatalogPricingModelEnum } from "./CatalogPricingModelEnum";
-import { CatalogPricingTypeEnum } from "./CatalogPricingTypeEnum";
-import { IActivePage } from "./IActivePage";
-import { IProduct } from "./IProduct";
+import { CatalogPricingModelEnum } from './CatalogPricingModelEnum';
+import { CatalogPricingTypeEnum } from './CatalogPricingTypeEnum';
+import { IActivePage } from './IActivePage';
+import { IProduct } from './IProduct';
 
 export interface IPurchasableOffer {
     readonly pricingModel: CatalogPricingModelEnum;
@@ -10,6 +10,7 @@ export interface IPurchasableOffer {
     readonly localizationId: string;
     readonly priceInCredits: number;
     readonly priceInActivityPoints: number;
+    readonly priceInSilver: number;
     readonly activityPointType: number;
     readonly giftable: boolean;
     readonly isRentOffer: boolean;

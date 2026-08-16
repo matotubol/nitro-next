@@ -42,9 +42,11 @@ export const useCatalogNavigation = () => {
 
                 setActiveOffer(offer);
 
-                break;
+                return;
             }
         }
+
+        setActiveOffer(undefined);
     }
 
     const activateNode = (targetNode: ICatalogNode, offerId: number = -1) => {

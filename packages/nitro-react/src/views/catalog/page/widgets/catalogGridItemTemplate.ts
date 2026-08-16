@@ -1,4 +1,6 @@
-import { CatalogPricingTypeEnum, IPurchasableOffer } from '@nitrodevco/nitro-api';
+import { IPurchasableOffer } from '@nitrodevco/nitro-api';
+
+import { getCatalogOfferPriceEntries } from './catalogPriceUtilities';
 
 type CatalogGridItemTemplate = {
     width: number;
@@ -36,6 +38,13 @@ const GRID_ITEM_TEMPLATES = {
         highlightInset: 2,
         artwork: { left: 8, top: 2, width: 36, height: 36 },
     },
+    multiplePrice: {
+        width: 53,
+        height: 86,
+        highlightHeight: 86,
+        highlightInset: 2,
+        artwork: { left: 8, top: 2, width: 36, height: 36 },
+    },
 } as const satisfies Record<string, CatalogGridItemTemplate>;
 
 // ItemGridCatalogWidget keeps the XML's horizontal spacing and resets vertical spacing.
@@ -47,11 +56,12 @@ export const CATALOG_GRID_SPACING = {
 export const getCatalogGridItemTemplate = (
     offer: IPurchasableOffer,
 ): CatalogGridItemTemplate => {
-    if (offer.pricingType === CatalogPricingTypeEnum.None)
-        return GRID_ITEM_TEMPLATES.noPrice;
+    const priceCount = getCatalogOfferPriceEntries(offer).length;
 
-    if (offer.pricingType === CatalogPricingTypeEnum.CreditsActivityPoints)
-        return GRID_ITEM_TEMPLATES.combinedPrice;
+    if (priceCount === 0) return GRID_ITEM_TEMPLATES.noPrice;
+
+    if (priceCount === 2) return GRID_ITEM_TEMPLATES.combinedPrice;
+    if (priceCount > 2) return GRID_ITEM_TEMPLATES.multiplePrice;
 
     return GRID_ITEM_TEMPLATES.singlePrice;
 };
