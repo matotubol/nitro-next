@@ -3,8 +3,14 @@ import type { IAvatarEffectListener, IEffectAssetDownloadLibrary, IEffectMapLibr
 import type { AvatarStructure } from './AvatarStructure';
 import { EffectAssetDownloadLibrary } from './EffectAssetDownloadLibrary';
 
+type PendingEffectLibraryDownload = {
+    library: EffectAssetDownloadLibrary;
+    resolve: () => void;
+};
+
 export class EffectAssetDownloadManager {
     private static MANDATORY_LIBRARIES: string[] = ['dance.1', 'dance.2', 'dance.3', 'dance.4'];
+    private static MAX_CONCURRENT_DOWNLOADS: number = 4;
 
     private _structure: AvatarStructure;
     private _missingMandatoryLibs: string[] = EffectAssetDownloadManager.MANDATORY_LIBRARIES;
@@ -12,28 +18,37 @@ export class EffectAssetDownloadManager {
     private _pendingDownloads: [number, IAvatarEffectListener][] = [];
     private _effectListeners: Map<number, IAvatarEffectListener[]> = new Map();
     private _incompleteEffects: Map<number, EffectAssetDownloadLibrary[]> = new Map();
-    private _pendingDownloadQueue: EffectAssetDownloadLibrary[] = [];
-    private _currentDownloads: EffectAssetDownloadLibrary[] = [];
-    private _libraryNames: string[] = [];
+    private _librariesByName: Map<string, EffectAssetDownloadLibrary> = new Map();
+    private _pendingDownloadQueue: PendingEffectLibraryDownload[] = [];
+    private _currentDownloads: Set<EffectAssetDownloadLibrary> = new Set();
+    private _downloadPromises: Map<EffectAssetDownloadLibrary, Promise<void>> = new Map();
     private _isReady: boolean = false;
+    private _readyPromise: Promise<void>;
+    private _resolveReady!: () => void;
     private _onAssetLibraryLoaded: ((libraryName: string) => void) | undefined;
 
     constructor(structure: AvatarStructure, onAssetLibraryLoaded?: (libraryName: string) => void) {
         this._structure = structure;
         this._onAssetLibraryLoaded = onAssetLibraryLoaded;
+        this._readyPromise = new Promise(resolve => {
+            this._resolveReady = resolve;
+        });
     }
 
     public processEffectMap(data: IEffectMapLibrary[], assetUrl: string): void {
         if (!data) return;
 
         for (const library of data) {
-            if (!library || this._libraryNames.indexOf(library.lib) >= 0) continue;
+            if (!library) continue;
 
-            this._libraryNames.push(library.lib);
+            let downloadLibrary = this._librariesByName.get(library.lib);
 
-            const downloadLibrary = new EffectAssetDownloadLibrary(library.lib, library.revision ?? 0, assetUrl, lib => this.onLibraryLoaded(lib));
+            if (!downloadLibrary) {
+                downloadLibrary = new EffectAssetDownloadLibrary(library.lib, library.revision ?? 0, assetUrl, lib => this.onLibraryLoaded(lib));
+                this._librariesByName.set(library.lib, downloadLibrary);
 
-            if (downloadLibrary.isLoaded) this._onAssetLibraryLoaded?.(downloadLibrary.libraryName);
+                if (downloadLibrary.isLoaded) this._onAssetLibraryLoaded?.(downloadLibrary.libraryName);
+            }
 
             let existing = this._effectMap.get(library.id);
 
@@ -43,7 +58,7 @@ export class EffectAssetDownloadManager {
                 this._effectMap.set(library.id, existing);
             }
 
-            existing.push(downloadLibrary);
+            if (!existing.includes(downloadLibrary)) existing.push(downloadLibrary);
         }
     }
 
@@ -62,7 +77,7 @@ export class EffectAssetDownloadManager {
     }
 
     public isAvatarEffectReady(effect: number): boolean {
-        return !this.getAvatarEffectPendingLibraries(effect)?.length;
+        return this._isReady && !this.getAvatarEffectPendingLibraries(effect).length;
     }
 
     public downloadAvatarEffect(id: number, listener: IAvatarEffectListener): void {
@@ -93,15 +108,24 @@ export class EffectAssetDownloadManager {
     }
 
     public async downloadAvatarEffectAsync(id: number): Promise<void> {
-        if (!this._isReady) return;
+        await this._readyPromise;
 
         const libraries = this.getAvatarEffectPendingLibraries(id);
 
-        if (libraries.length) await Promise.all(libraries.map(library => this.downloadLibraryAsync(library)));
+        if (!libraries.length) return;
+
+        await Promise.all(libraries.map(library => this.downloadLibraryAsync(library)));
+
+        const failed = libraries.filter(library => !library.isLoaded);
+
+        if (failed.length) throw new Error(`Failed to load effect libraries: ${failed.map(library => library.libraryName).join(', ')}`);
     }
 
     public setReady(): void {
+        if (this._isReady) return;
+
         this._isReady = true;
+        this._resolveReady();
     }
 
     private getAvatarEffectPendingLibraries(id: number): EffectAssetDownloadLibrary[] {
@@ -123,31 +147,50 @@ export class EffectAssetDownloadManager {
     }
 
     private downloadLibrary(library: EffectAssetDownloadLibrary): void {
-        if (!library || library.isLoaded) return;
-
-        if ((this._pendingDownloadQueue.indexOf(library) >= 0) || (this._currentDownloads.indexOf(library) >= 0)) return;
-
-        this._pendingDownloadQueue.push(library);
-
-        this.processDownloadQueue();
+        void this.getOrCreateQueuedDownload(library);
     }
 
     private async downloadLibraryAsync(library: EffectAssetDownloadLibrary): Promise<void> {
-        if (!library || library.isLoaded) return;
-
-        await library.downloadAssetAsync();
+        await this.getOrCreateQueuedDownload(library);
     }
 
     private processDownloadQueue(): void {
-        while (this._pendingDownloadQueue.length) {
-            const library = this._pendingDownloadQueue.shift();
+        while (this._pendingDownloadQueue.length && this._currentDownloads.size < EffectAssetDownloadManager.MAX_CONCURRENT_DOWNLOADS) {
+            const pending = this._pendingDownloadQueue.shift();
 
-            if (!library) continue;
+            if (!pending) continue;
 
-            this._currentDownloads.push(library);
+            const { library, resolve } = pending;
 
-            void library.downloadAsset();
+            this._currentDownloads.add(library);
+
+            void library.downloadAssetAsync()
+                .finally(() => {
+                    this._currentDownloads.delete(library);
+                    this._downloadPromises.delete(library);
+                    resolve();
+                    this.processDownloadQueue();
+                });
         }
+    }
+
+    private getOrCreateQueuedDownload(library: EffectAssetDownloadLibrary): Promise<void> {
+        if (!library || library.isLoaded) return Promise.resolve();
+
+        const existing = this._downloadPromises.get(library);
+
+        if (existing) return existing;
+
+        let resolveDownload!: () => void;
+        const promise = new Promise<void>(resolve => {
+            resolveDownload = resolve;
+        });
+
+        this._downloadPromises.set(library, promise);
+        this._pendingDownloadQueue.push({ library, resolve: resolveDownload });
+        this.processDownloadQueue();
+
+        return promise;
     }
 
     private onLibraryLoaded(library: IEffectAssetDownloadLibrary): void {
@@ -184,14 +227,9 @@ export class EffectAssetDownloadManager {
 
         for (const id of loadedEffects) this._incompleteEffects.delete(id);
 
-        let index = 0;
+    }
 
-        while (index < this._currentDownloads.length) {
-            const download = this._currentDownloads[index];
-
-            if (download && download.libraryName === library.libraryName) this._currentDownloads.splice(index, 1);
-
-            index++;
-        }
+    public get isReady(): boolean {
+        return this._isReady;
     }
 }

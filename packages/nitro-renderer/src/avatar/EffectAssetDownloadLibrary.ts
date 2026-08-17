@@ -41,7 +41,7 @@ export class EffectAssetDownloadLibrary implements IEffectAssetDownloadLibrary {
         this._state = AvatarAssetDownloadStatus.Loading;
 
         const promise = (async () => {
-            const asset = GetAssetManager().getCollection(this._libraryName);
+            let asset = GetAssetManager().getCollection(this._libraryName);
 
             if (!asset && !(await GetAssetManager().downloadAsset(this._assetUrl))) {
                 this._state = AvatarAssetDownloadStatus.NotLoaded;
@@ -49,11 +49,18 @@ export class EffectAssetDownloadLibrary implements IEffectAssetDownloadLibrary {
                 return false;
             }
 
+            asset = GetAssetManager().getCollection(this._libraryName);
+
+            if (!asset) {
+                this._state = AvatarAssetDownloadStatus.NotLoaded;
+                NitroLogger.error(`Effect library did not register a collection: ${this._libraryName}`);
+
+                return false;
+            }
+
             this._state = AvatarAssetDownloadStatus.Loaded;
 
-            const collection = GetAssetManager().getCollection(this._libraryName);
-
-            if (collection) this._animations = collection.data?.animations ?? [];
+            this._animations = asset.data?.animations ?? [];
 
             this._onDownloaded(this);
 

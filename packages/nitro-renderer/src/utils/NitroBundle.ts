@@ -12,7 +12,7 @@ export class NitroBundle {
     public static async fromZip(zip: JSZip): Promise<NitroBundle> {
         const bundle = new NitroBundle();
 
-        for (const file of Object.values(zip.files)) {
+        await Promise.all(Object.values(zip.files).map(async file => {
             try {
                 const name = file.name;
 
@@ -32,7 +32,7 @@ export class NitroBundle {
             catch (err) {
                 NitroLogger.error(err);
             }
-        }
+        }));
 
         return bundle;
     }

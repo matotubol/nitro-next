@@ -3,7 +3,7 @@ import '@pixi/node';
 
 import { serve } from '@hono/node-server';
 import { NitroLogger } from '@nitrodevco/nitro-api';
-import { PrepareRenderer } from '@nitrodevco/nitro-renderer';
+import { PrepareRenderer, TexturePool } from '@nitrodevco/nitro-renderer';
 
 import { GetHono } from './GetHono';
 import { AvatarLoader } from './loaders/AvatarLoader';
@@ -15,6 +15,7 @@ const init = async () => {
     try {
         NitroLogger.log(`Preparing Imager`);
         await PrepareRenderer({});
+        TexturePool.startAutoCleanup();
         await AvatarLoader();
 
         serve({

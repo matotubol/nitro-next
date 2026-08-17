@@ -19,6 +19,9 @@ export class AvatarRenderManager implements IAvatarRenderManager {
     private _avatarAssetDownloadManager: AvatarAssetDownloadManager;
     private _effectAssetDownloadManager: EffectAssetDownloadManager;
     private _placeHolderFigure: AvatarFigureContainer | undefined;
+    private _initialized: boolean;
+    private _figureMapReady: boolean;
+    private _effectMapReady: boolean;
     private _isReady: boolean;
 
     constructor() {
@@ -33,10 +36,15 @@ export class AvatarRenderManager implements IAvatarRenderManager {
             libraryName => this._aliasCollection.addCollection(libraryName),
         );
         this._placeHolderFigure = undefined;
+        this._initialized = false;
+        this._figureMapReady = false;
+        this._effectMapReady = false;
         this._isReady = false;
     }
 
     public init(): void {
+        if (this._initialized) return;
+
         this._structure.initGeometry(HabboAvatarGeometry);
         this._structure.initPartSets(HabboAvatarPartSets);
         this._structure.actionManager.updateActions(HabboAvatarActionsDefault);
@@ -44,6 +52,7 @@ export class AvatarRenderManager implements IAvatarRenderManager {
         this._structure.initAnimation(HabboAvatarAnimations);
         this._structure.initFigureData(HabboAvatarFigureDataDefault);
         this._aliasCollection.init();
+        this._initialized = true;
     }
 
     public processFigureMap(data: IFigureMapLibrary[], assetUrl: string) {
@@ -51,6 +60,8 @@ export class AvatarRenderManager implements IAvatarRenderManager {
         this._avatarAssetDownloadManager.processMissingLibraries();
         this._avatarAssetDownloadManager.setReady();
         this._avatarAssetDownloadManager.processPendingContainers();
+        this._figureMapReady = true;
+        this.updateReadyState();
     }
 
     public processEffectMap(data: IEffectMapLibrary[], assetUrl: string) {
@@ -58,6 +69,8 @@ export class AvatarRenderManager implements IAvatarRenderManager {
         this._effectAssetDownloadManager.processMissingLibraries();
         this._effectAssetDownloadManager.setReady();
         this._effectAssetDownloadManager.processPendingDownloads();
+        this._effectMapReady = true;
+        this.updateReadyState();
     }
 
     public createFigureContainer(figure: string): IAvatarFigureContainer {
@@ -238,5 +251,9 @@ export class AvatarRenderManager implements IAvatarRenderManager {
         }
 
         return partSets;
+    }
+
+    private updateReadyState(): void {
+        this._isReady = this._initialized && this._figureMapReady && this._effectMapReady;
     }
 }

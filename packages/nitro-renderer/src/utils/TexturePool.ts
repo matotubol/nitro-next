@@ -17,6 +17,7 @@ export class TexturePool {
         if (this._tickerFn) return;
 
         this._tickerFn = () => {
+            this._runCount++;
             this._framesSinceCheck++;
 
             if (this._framesSinceCheck >= this._checkInterval) {
@@ -73,8 +74,6 @@ export class TexturePool {
     }
 
     public static cleanUpTextures(): void {
-        this._runCount++;
-
         if (!this._totalTextures) return;
 
         for (const width in this._texturePool) {

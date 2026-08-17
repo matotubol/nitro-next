@@ -23,6 +23,7 @@ export interface IAvatarRenderManager {
     getMandatoryAvatarPartSetIds(gender: AvatarGenderType, _arg_2: number): string[];
     getAssetByName(name: string): IGraphicAsset | undefined;
     refreshAliases(): void;
+    readonly isReady: boolean;
     readonly structure: IAvatarStructure;
     readonly structureData: IStructureData;
 }

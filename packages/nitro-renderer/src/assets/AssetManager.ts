@@ -10,6 +10,8 @@ import { GraphicAssetCollection } from './GraphicAssetCollection';
 export class AssetManager implements IAssetManager {
     private _textures: Map<string, Texture> = new Map();
     private _collections: Map<string, IGraphicAssetCollection> = new Map();
+    private _assets: Map<string, IGraphicAsset> = new Map();
+    private _downloadPromises: Map<string, Promise<boolean>> = new Map();
 
     public getTexture(name: string): Texture | undefined {
         return this._textures.get(name);
@@ -26,12 +28,18 @@ export class AssetManager implements IAssetManager {
     public getAsset(name: string): IGraphicAsset | undefined {
         if (!name || !name.length) return undefined;
 
+        const cached = this._assets.get(name);
+
+        if (cached) return cached;
+
         for (const collection of this._collections.values()) {
             if (!collection) continue;
 
             const existing = collection.getAsset(name);
 
             if (!existing) continue;
+
+            this._assets.set(name, existing);
 
             return existing;
         }
@@ -47,8 +55,11 @@ export class AssetManager implements IAssetManager {
         texture: Texture
     ): IGraphicAsset | undefined {
         const collection = this.getCollection(collectionName);
+        const asset = collection?.addAsset(assetName, texture, 0, 0, false, false, false, true);
 
-        return collection?.addAsset(assetName, texture, 0, 0, false, false, false, true) ?? undefined;
+        if (asset) this._assets.set(assetName, asset);
+
+        return asset ?? undefined;
     }
 
     public getCollection(name: string): IGraphicAssetCollection | undefined {
@@ -61,9 +72,17 @@ export class AssetManager implements IAssetManager {
     ): IGraphicAssetCollection | undefined {
         if (!data) return undefined;
 
+        const existing = this._collections.get(data.type);
+
+        if (existing) return existing;
+
         const collection = new GraphicAssetCollection(data, spritesheet?.textureSource, spritesheet?.textures);
 
         for (const [name, texture] of collection.textures.entries()) this.setTexture(name, texture);
+
+        for (const [name, asset] of collection.assets.entries()) {
+            if (!this._assets.has(name)) this._assets.set(name, asset);
+        }
 
         this._collections.set(collection.name, collection);
 
@@ -74,9 +93,9 @@ export class AssetManager implements IAssetManager {
         if (!urls || !urls.length) return true;
 
         try {
-            await Promise.all(urls.map(url => this.downloadAsset(url)));
+            const results = await Promise.all(urls.map(url => this.downloadAsset(url)));
 
-            return true;
+            return results.every(Boolean);
         } catch (err) {
             NitroLogger.error(err);
 
@@ -85,13 +104,31 @@ export class AssetManager implements IAssetManager {
     }
 
     public async downloadAsset(url: string): Promise<boolean> {
+        if (!url || !url.length) {
+            NitroLogger.error(`Invalid url: ${url}`);
+
+            return false;
+        }
+
+        const existing = this._downloadPromises.get(url);
+
+        if (existing) return existing;
+
+        const promise = this.downloadAssetInternal(url)
+            .finally(() => this._downloadPromises.delete(url));
+
+        this._downloadPromises.set(url, promise);
+
+        return promise;
+    }
+
+    private async downloadAssetInternal(url: string): Promise<boolean> {
         try {
-            if (!url || !url.length) throw new Error(`Invalid url: ${url}`);
+            const cleanUrl = url.split(/[?#]/, 1)[0];
+            const ext = cleanUrl.slice(cleanUrl.lastIndexOf('.') + 1).toLowerCase();
+            const response = await this.fetchWithRetry(url);
 
-            const ext = url.slice(url.lastIndexOf('.') + 1);
-            const response = await fetch(url);
-
-            if (!response || response.status !== 200) throw new Error(`Invalid response`);
+            if (!response) return false;
 
             const responseData = await response.arrayBuffer();
 
@@ -136,6 +173,32 @@ export class AssetManager implements IAssetManager {
         }
     }
 
+    private async fetchWithRetry(url: string, maxAttempts: number = 3): Promise<Response | undefined> {
+        let lastError: unknown;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                const response = await fetch(url);
+
+                if (response.ok) return response;
+
+                lastError = new Error(`Asset request failed (${response.status}): ${url}`);
+
+                if (response.status < 500 && response.status !== 429) break;
+            } catch (error) {
+                lastError = error;
+            }
+
+            if (attempt < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, attempt * 250));
+            }
+        }
+
+        NitroLogger.error(lastError ?? new Error(`Asset request failed: ${url}`));
+
+        return undefined;
+    }
+
     public get collections(): Map<string, IGraphicAssetCollection> {
         return this._collections;
     }
@@ -178,11 +241,12 @@ export class AssetManager implements IAssetManager {
             }
         }
 
-        // Converted avatar and effect bundles identify the library with `name`,
-        // while room/furniture bundles use `type`. Keep the real library name as
-        // the collection key so downloading a second figure library cannot
-        // replace the first collection under an empty string.
-        if (!assetData.type && assetData.name) assetData.type = assetData.name;
+        // `type` describes the asset contents (hr, ch, furniture, ...), not the
+        // identity of the downloaded library. Figure scale variants frequently
+        // share a type, so using it as the collection key makes whichever request
+        // finishes last replace the other. Converted bundles expose their stable
+        // library identity as `name`; furniture bundles without a name keep type.
+        if (assetData.name) assetData.type = assetData.name;
 
         this.createCollection(assetData, spritesheet);
     }

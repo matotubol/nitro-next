@@ -3,37 +3,51 @@ import type { IAvatarAssetDownloadLibrary, IAvatarFigureContainer, IAvatarImageL
 import { AvatarAssetDownloadLibrary } from './AvatarAssetDownloadLibrary';
 import type { AvatarStructure } from './AvatarStructure';
 
+type PendingAvatarLibraryDownload = {
+    library: AvatarAssetDownloadLibrary;
+    resolve: () => void;
+};
+
 export class AvatarAssetDownloadManager {
-    private static MANDATORY_LIBRARIES: string[] = ['bd:1', 'li:0'];
+    private static MANDATORY_LIBRARIES: string[] = ['hh_human_body', 'hh_human_item'];
+    private static MAX_CONCURRENT_DOWNLOADS: number = 6;
 
     private _structure: AvatarStructure;
-    private _missingMandatoryLibs: string[] = AvatarAssetDownloadManager.MANDATORY_LIBRARIES;
     private _figureMap: Map<string, AvatarAssetDownloadLibrary[]> = new Map();
+    private _librariesByName: Map<string, AvatarAssetDownloadLibrary> = new Map();
     private _pendingContainers: [IAvatarFigureContainer, IAvatarImageListener][] = [];
     private _figureListeners: Map<string, IAvatarImageListener[]> = new Map();
     private _incompleteFigures: Map<string, AvatarAssetDownloadLibrary[]> = new Map();
-    private _pendingDownloadQueue: AvatarAssetDownloadLibrary[] = [];
-    private _currentDownloads: AvatarAssetDownloadLibrary[] = [];
-    private _libraryNames: string[] = [];
+    private _pendingDownloadQueue: PendingAvatarLibraryDownload[] = [];
+    private _currentDownloads: Set<AvatarAssetDownloadLibrary> = new Set();
+    private _downloadPromises: Map<AvatarAssetDownloadLibrary, Promise<void>> = new Map();
     private _isReady: boolean = false;
+    private _readyPromise: Promise<void>;
+    private _resolveReady!: () => void;
     private _onAssetLibraryLoaded: ((libraryName: string) => void) | undefined;
 
     constructor(structure: AvatarStructure, onAssetLibraryLoaded?: (libraryName: string) => void) {
         this._structure = structure;
         this._onAssetLibraryLoaded = onAssetLibraryLoaded;
+        this._readyPromise = new Promise(resolve => {
+            this._resolveReady = resolve;
+        });
     }
 
     public processFigureMap(data: IFigureMapLibrary[], assetUrl: string): void {
         if (!data) return;
 
         for (const library of data) {
-            if (!library || this._libraryNames.indexOf(library.id) >= 0) continue;
+            if (!library) continue;
 
-            this._libraryNames.push(library.id);
+            let downloadLibrary = this._librariesByName.get(library.id);
 
-            const downloadLibrary = new AvatarAssetDownloadLibrary(library.id, library.revision ?? 0, assetUrl, lib => this.onLibraryLoaded(lib));
+            if (!downloadLibrary) {
+                downloadLibrary = new AvatarAssetDownloadLibrary(library.id, library.revision ?? 0, assetUrl, lib => this.onLibraryLoaded(lib));
+                this._librariesByName.set(library.id, downloadLibrary);
 
-            if (downloadLibrary.isLoaded) this._onAssetLibraryLoaded?.(downloadLibrary.libraryName);
+                if (downloadLibrary.isLoaded) this._onAssetLibraryLoaded?.(downloadLibrary.libraryName);
+            }
 
             if (!library.parts?.length) continue;
 
@@ -48,16 +62,16 @@ export class AvatarAssetDownloadManager {
                     this._figureMap.set(partString, existing);
                 }
 
-                existing.push(downloadLibrary);
+                if (!existing.includes(downloadLibrary)) existing.push(downloadLibrary);
             }
         }
     }
 
     public processMissingLibraries(): void {
-        for (const lib of this._missingMandatoryLibs.slice()) {
-            const libraries = this._figureMap.get(lib);
+        for (const name of AvatarAssetDownloadManager.MANDATORY_LIBRARIES) {
+            const library = this._librariesByName.get(name);
 
-            if (libraries) for (const library of libraries) this.downloadLibrary(library);
+            if (library) this.downloadLibrary(library);
         }
     }
 
@@ -68,7 +82,7 @@ export class AvatarAssetDownloadManager {
     }
 
     public isAvatarFigureContainerReady(container: IAvatarFigureContainer): boolean {
-        return !this.getAvatarFigurePendingLibraries(container)?.length;
+        return this._isReady && !this.getAvatarFigurePendingLibraries(container).length;
     }
 
     public downloadAvatarFigure(container: IAvatarFigureContainer, listener: IAvatarImageListener): void {
@@ -100,15 +114,24 @@ export class AvatarAssetDownloadManager {
     }
 
     public async downloadAvatarFigureAsync(container: IAvatarFigureContainer): Promise<void> {
-        if (!this._isReady) return;
+        await this._readyPromise;
 
         const libraries = this.getAvatarFigurePendingLibraries(container);
 
-        if (libraries.length) await Promise.all(libraries.map(library => this.downloadLibraryAsync(library)));
+        if (!libraries.length) return;
+
+        await Promise.all(libraries.map(library => this.downloadLibraryAsync(library)));
+
+        const failed = libraries.filter(library => !library.isLoaded);
+
+        if (failed.length) throw new Error(`Failed to load avatar libraries: ${failed.map(library => library.libraryName).join(', ')}`);
     }
 
     public setReady(): void {
+        if (this._isReady) return;
+
         this._isReady = true;
+        this._resolveReady();
     }
 
     private getAvatarFigurePendingLibraries(container: IAvatarFigureContainer): AvatarAssetDownloadLibrary[] {
@@ -131,46 +154,83 @@ export class AvatarAssetDownloadManager {
 
             if (!figurePartSet) continue;
 
-            for (const part of figurePartSet.parts) {
-                const libraries = this._figureMap.get(`${part.type}:${part.id}`);
-
-                if (!libraries) continue;
-
-                for (const library of libraries) {
-                    if (!library || library.isLoaded || pendingLibraries.indexOf(library) >= 0) continue;
-
-                    pendingLibraries.push(library);
-                }
+            for (const library of this.getFigurePartSetLibraries(figurePartSet.parts.map(part => `${part.type}:${part.id}`))) {
+                if (!library.isLoaded && !pendingLibraries.includes(library)) pendingLibraries.push(library);
             }
         }
 
         return pendingLibraries;
     }
 
+    /**
+     * Figure-map entries list every part required by a library's figure set, not
+     * only the sprites physically stored in that bundle. Custom faces therefore
+     * claim generic parts such as bd:1 and hd:1 while containing only their unique
+     * overlay. Prefer the canonical core owner for core parts, and only fan out
+     * to custom libraries for non-core part ids.
+     */
+    private getFigurePartSetLibraries(partKeys: string[]): AvatarAssetDownloadLibrary[] {
+        const selected: AvatarAssetDownloadLibrary[] = [];
+
+        for (const partKey of new Set(partKeys)) {
+            const mapped = this._figureMap.get(partKey) ?? [];
+            const fullSize = mapped.filter(library => !library.libraryName.includes('_50_'));
+            const canonical = fullSize.filter(library => library.libraryName.startsWith('hh_human_'));
+            const libraries = canonical.length ? canonical : (fullSize.length ? fullSize : mapped);
+
+            for (const library of libraries) {
+                if (!selected.includes(library)) selected.push(library);
+            }
+        }
+
+        return selected;
+    }
+
     private downloadLibrary(library: AvatarAssetDownloadLibrary): void {
-        if (!library || library.isLoaded || (this._pendingDownloadQueue.indexOf(library) >= 0) || (this._currentDownloads.indexOf(library) >= 0)) return;
-
-        this._pendingDownloadQueue.push(library);
-
-        this.processDownloadQueue();
+        void this.getOrCreateQueuedDownload(library);
     }
 
     private async downloadLibraryAsync(library: AvatarAssetDownloadLibrary): Promise<void> {
-        if (!library || library.isLoaded) return;
-
-        await library.downloadAssetAsync();
+        await this.getOrCreateQueuedDownload(library);
     }
 
     private processDownloadQueue(): void {
-        while (this._pendingDownloadQueue.length) {
-            const library = this._pendingDownloadQueue.shift();
+        while (this._pendingDownloadQueue.length && this._currentDownloads.size < AvatarAssetDownloadManager.MAX_CONCURRENT_DOWNLOADS) {
+            const pending = this._pendingDownloadQueue.shift();
 
-            if (!library) continue;
+            if (!pending) continue;
 
-            this._currentDownloads.push(library);
+            const { library, resolve } = pending;
 
-            library.downloadAsset();
+            this._currentDownloads.add(library);
+
+            void library.downloadAssetAsync()
+                .finally(() => {
+                    this._currentDownloads.delete(library);
+                    this._downloadPromises.delete(library);
+                    resolve();
+                    this.processDownloadQueue();
+                });
         }
+    }
+
+    private getOrCreateQueuedDownload(library: AvatarAssetDownloadLibrary): Promise<void> {
+        if (!library || library.isLoaded) return Promise.resolve();
+
+        const existing = this._downloadPromises.get(library);
+
+        if (existing) return existing;
+
+        let resolveDownload!: () => void;
+        const promise = new Promise<void>(resolve => {
+            resolveDownload = resolve;
+        });
+
+        this._downloadPromises.set(library, promise);
+        this._pendingDownloadQueue.push({ library, resolve: resolveDownload });
+        this.processDownloadQueue();
+
+        return promise;
     }
 
     private onLibraryLoaded(library: IAvatarAssetDownloadLibrary): void {
@@ -209,14 +269,9 @@ export class AvatarAssetDownloadManager {
 
         for (const figure of loadedFigures) this._incompleteFigures.delete(figure);
 
-        let index = 0;
+    }
 
-        while (index < this._currentDownloads.length) {
-            const download = this._currentDownloads[index];
-
-            if (download && download.libraryName === library.libraryName) this._currentDownloads.splice(index, 1);
-
-            index++;
-        }
+    public get isReady(): boolean {
+        return this._isReady;
     }
 }

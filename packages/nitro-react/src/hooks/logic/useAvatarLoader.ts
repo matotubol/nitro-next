@@ -1,11 +1,12 @@
-import type { IEffectMapLibrary, IFigureMapLibrary } from '@nitrodevco/nitro-api';
+import type { IEffectMapLibrary, IFigureData, IFigureMapLibrary } from '@nitrodevco/nitro-api';
 import { NitroLogger } from '@nitrodevco/nitro-api';
 import { GetAvatarRenderManager } from '@nitrodevco/nitro-renderer';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useConfigValue } from '#base/context';
 
 export const useAvatarLoader = () => {
+    const [isAvatarReady, setIsAvatarReady] = useState(false);
     const figureMapUrl = useConfigValue<string>('figuremap.url') ?? '';
     const effectMapUrl = useConfigValue<string>('effectmap.url') ?? '';
     const avatarAssetUrl = useConfigValue<string>('asset.urls.avatar') ?? '';
@@ -13,58 +14,47 @@ export const useAvatarLoader = () => {
     const figureDataUrl = useConfigValue<string>('figuredata.url') ?? '';
 
     useEffect(() => {
-        if (!figureMapUrl || !effectMapUrl || !figureDataUrl) return;
+        setIsAvatarReady(false);
 
-        const loadFigureMapAsync = async (url: string) => {
-            if (!url || !url.length || !avatarAssetUrl) return;
+        if (!figureMapUrl || !effectMapUrl || !figureDataUrl || !avatarAssetUrl || !effectAssetUrl) return;
 
+        const abortController = new AbortController();
+        const manager = GetAvatarRenderManager();
+
+        const fetchJson = async <T>(url: string, label: string): Promise<T> => {
+            const response = await fetch(url, { signal: abortController.signal });
+
+            if (!response.ok) throw new Error(`Invalid ${label} url (${response.status})`);
+
+            return response.json() as Promise<T>;
+        };
+
+        const load = async () => {
             try {
-                const response = await fetch(url);
+                manager.init();
 
-                if (response.status !== 200) throw new Error('Invalid figuremap url');
+                const [figureMap, effectMap, figureData] = await Promise.all([
+                    fetchJson<{ libraries: IFigureMapLibrary[] }>(figureMapUrl, 'figuremap'),
+                    fetchJson<{ effects: IEffectMapLibrary[] }>(effectMapUrl, 'effectmap'),
+                    fetchJson<IFigureData>(figureDataUrl, 'figuredata'),
+                ]);
 
-                const reponse = await response.json() as { libraries: IFigureMapLibrary[] };
+                if (abortController.signal.aborted) return;
 
-                GetAvatarRenderManager().processFigureMap(reponse.libraries, avatarAssetUrl);
-            } catch (e) {
-                NitroLogger.error(e);
+                // Figure data must exist before either map can release queued avatar requests.
+                manager.structure.injectFigureData(figureData);
+                manager.processFigureMap(figureMap.libraries, avatarAssetUrl);
+                manager.processEffectMap(effectMap.effects, effectAssetUrl);
+                setIsAvatarReady(manager.isReady);
+            } catch (error) {
+                if (!abortController.signal.aborted) NitroLogger.error(error);
             }
         };
 
-        const loadEffectMapAsync = async (url: string) => {
-            if (!url || !url.length || !effectAssetUrl) return;
+        void load();
 
-            try {
-                const response = await fetch(url);
+        return () => abortController.abort();
+    }, [figureMapUrl, effectMapUrl, figureDataUrl, avatarAssetUrl, effectAssetUrl]);
 
-                if (response.status !== 200) throw new Error('Invalid effectmap url');
-
-                const reponse = await response.json() as { effects: IEffectMapLibrary[] };
-
-                GetAvatarRenderManager().processEffectMap(reponse.effects, effectAssetUrl);
-            } catch (e) {
-                NitroLogger.error(e);
-            }
-        };
-
-        const loadFigureDataAsync = async (url: string) => {
-            if (!url || !url.length || !avatarAssetUrl) return;
-
-            try {
-                const response = await fetch(url);
-
-                if (response.status !== 200) throw new Error('Invalid figuredata url');
-
-                GetAvatarRenderManager().structure.injectFigureData(await response.json());
-            } catch (e) {
-                NitroLogger.error(e);
-            }
-        };
-
-        GetAvatarRenderManager().init();
-
-        void loadFigureMapAsync(figureMapUrl);
-        void loadEffectMapAsync(effectMapUrl);
-        void loadFigureDataAsync(figureDataUrl);
-    }, [figureMapUrl, effectMapUrl]);
+    return { isAvatarReady };
 };

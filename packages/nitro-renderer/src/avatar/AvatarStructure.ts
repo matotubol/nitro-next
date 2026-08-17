@@ -47,6 +47,7 @@ export class AvatarStructure implements IAvatarStructure {
 
     public injectFigureData(data: IFigureData): void {
         this._figureData.injectJSON(data);
+        this._mandatorySetTypeIds.clear();
     }
 
     public registerAnimations(data: IAssetAnimation[]): void {

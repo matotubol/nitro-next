@@ -10,11 +10,20 @@ type AvatarImageProps = {
     direction?: number;
     scale?: number;
     crop?: 'avatar' | 'face';
+    offsetY?: number;
 };
 
 export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
     (props, ref) => {
-        const { figure, gender, headOnly = false, direction = 0, scale = 1, crop = 'avatar' } = props;
+        const {
+            figure,
+            gender,
+            headOnly = false,
+            direction = 0,
+            scale = 1,
+            crop = 'avatar',
+            offsetY = crop === 'face' ? 0 : -8,
+        } = props;
         const [renderVersion, setRenderVersion] = useState<number>(0);
         const [imageData, setImageData] = useState<{
             width: number;
@@ -22,18 +31,12 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
             url: string;
         }>({ width: 0, height: 0, url: '' });
         useEffect(() => {
+            setImageData({ width: 0, height: 0, url: '' });
+
             if (!figure) return;
 
             let cancelled = false;
-            let renderSettled = false;
             let avatarDisposed = false;
-
-            const disposeAvatar = () => {
-                if (avatarDisposed) return;
-
-                avatarDisposed = true;
-                avatarImage?.dispose();
-            };
 
             const avatarImage = GetAvatarRenderManager().createAvatarImage(
                 figure,
@@ -57,6 +60,13 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
 
             if (!avatarImage) return;
 
+            const disposeAvatar = () => {
+                if (avatarDisposed) return;
+
+                avatarDisposed = true;
+                avatarImage.dispose();
+            };
+
             let setType = AvatarSetType.Full;
 
             if (headOnly) setType = AvatarSetType.Head;
@@ -69,9 +79,16 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
                     let image;
 
                     if (crop === 'face') {
-                        image = await AvatarImageView.renderImage(avatarImage, { type: 'face', scale });
+                        image = await AvatarImageView.renderImage(avatarImage, {
+                            type: 'face',
+                            scale,
+                        });
                     } else {
-                        image = await avatarImage.getCroppedImageAsync(setType, false, scale);
+                        image = await avatarImage.getCroppedImageAsync(
+                            setType,
+                            false,
+                            scale,
+                        );
                     }
 
                     if (!image || cancelled) return;
@@ -81,8 +98,9 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
                         height: image.height,
                         url: image.src,
                     });
+                } catch {
+                    if (!cancelled) setImageData({ width: 0, height: 0, url: '' });
                 } finally {
-                    renderSettled = true;
                     disposeAvatar();
                 }
             };
@@ -91,10 +109,17 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
 
             return () => {
                 cancelled = true;
-
-                if (renderSettled) disposeAvatar();
             };
-        }, [figure, gender, headOnly, direction, scale, crop, renderVersion]);
+        }, [
+            figure,
+            gender,
+            headOnly,
+            direction,
+            scale,
+            crop,
+            offsetY,
+            renderVersion,
+        ]);
 
         return (
             <div
@@ -104,7 +129,7 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
                     width: imageData.width,
                     height: imageData.height,
                     backgroundImage: `url(${imageData.url})`,
-                    backgroundPosition: crop === 'face' ? 'center' : 'center -8px',
+                    backgroundPosition: `center ${offsetY}px`,
                     backgroundRepeat: 'no-repeat',
                     pointerEvents: 'none',
                 }}

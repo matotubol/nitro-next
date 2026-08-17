@@ -26,7 +26,7 @@ export const Nitro: FC = () => {
     const { isProductDataReady } = useProductDataLoader();
     const { isAuthenticated, connect } = useWebSocketContext();
 
-    useAvatarLoader();
+    const { isAvatarReady } = useAvatarLoader();
 
     useEffect(() => {
         if (!isEngineReady) return;
@@ -74,7 +74,7 @@ export const Nitro: FC = () => {
         void setup(Math.floor(window.innerWidth), Math.floor(window.innerHeight));
     }, []);
 
-    const isReady = isEngineReady && isAuthenticated && isLocalizationReady() && isFurnitureDataReady() && isProductDataReady();
+    const isReady = isEngineReady && isAvatarReady && isAuthenticated && isLocalizationReady() && isFurnitureDataReady() && isProductDataReady();
 
     return (
         <>

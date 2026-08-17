@@ -39,10 +39,19 @@ export class AvatarAssetDownloadLibrary implements IAvatarAssetDownloadLibrary {
         this._state = AvatarAssetDownloadStatus.Loading;
 
         const promise = (async () => {
-            const asset = GetAssetManager().getCollection(this._libraryName);
+            let asset = GetAssetManager().getCollection(this._libraryName);
 
             if (!asset && !(await GetAssetManager().downloadAsset(this._assetUrl))) {
                 this._state = AvatarAssetDownloadStatus.NotLoaded;
+
+                return false;
+            }
+
+            asset = GetAssetManager().getCollection(this._libraryName);
+
+            if (!asset) {
+                this._state = AvatarAssetDownloadStatus.NotLoaded;
+                NitroLogger.error(`Avatar library did not register a collection: ${this._libraryName}`);
 
                 return false;
             }

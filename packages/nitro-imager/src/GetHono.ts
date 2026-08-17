@@ -6,6 +6,47 @@ import { ParseEnum } from "./ParseEnum";
 import { ParseIntInRange } from "./ParseIntInRange";
 
 const hono = new Hono();
+const AVATAR_CACHE_MAX_ENTRIES = 500;
+const AVATAR_CACHE_TTL_MS = 5 * 60 * 1000;
+const avatarCache = new Map<string, { createdAt: number; body: ArrayBuffer }>();
+
+const getAvatarCacheKey = (requestUrl: string): string => {
+    const url = new URL(requestUrl);
+
+    url.searchParams.sort();
+
+    return url.search;
+};
+
+const getCachedAvatar = (key: string): ArrayBuffer | undefined => {
+    const entry = avatarCache.get(key);
+
+    if (!entry) return undefined;
+
+    if ((Date.now() - entry.createdAt) >= AVATAR_CACHE_TTL_MS) {
+        avatarCache.delete(key);
+
+        return undefined;
+    }
+
+    // Refresh insertion order so the map also acts as a small LRU cache.
+    avatarCache.delete(key);
+    avatarCache.set(key, entry);
+
+    return entry.body;
+};
+
+const cacheAvatar = (key: string, body: ArrayBuffer): void => {
+    avatarCache.set(key, { createdAt: Date.now(), body });
+
+    while (avatarCache.size > AVATAR_CACHE_MAX_ENTRIES) {
+        const oldestKey = avatarCache.keys().next().value;
+
+        if (oldestKey === undefined) break;
+
+        avatarCache.delete(oldestKey);
+    }
+};
 
 const POSTURE_ALIASES = new Map<string, AvatarActionStateType>([
     ['std', AvatarActionStateType.Stand],
@@ -99,6 +140,14 @@ const appendAction = async (avatar: IAvatarImage, value: string | undefined) => 
 };
 
 hono.get('/avatar', async (c) => {
+    const cacheKey = getAvatarCacheKey(c.req.url);
+    const cached = getCachedAvatar(cacheKey);
+
+    c.header('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
+    c.header('Content-Type', 'image/png');
+
+    if (cached) return c.body(cached);
+
     const query = c.req.query();
     const figure = query.figure ?? 'hd-99999-99999';
     const gender = query.gender as AvatarGenderType ?? AvatarGenderType.Male;
@@ -126,7 +175,7 @@ hono.get('/avatar', async (c) => {
         if (query.action) for (const action of query.action.split(',')) await appendAction(avatar, action);
 
         if (query.posture !== undefined) {
-            let posture = POSTURE_ALIASES.get(query.posture.toLowerCase()) ?? query.posture as AvatarActionStateType;
+            let posture: AvatarActionStateType | undefined = POSTURE_ALIASES.get(query.posture.toLowerCase()) ?? query.posture as AvatarActionStateType;
 
             posture = ParseEnum(posture, AvatarActionStateType, undefined);
 
@@ -178,9 +227,11 @@ hono.get('/avatar', async (c) => {
 
         buffer = buffer.includes(',') ? buffer.split(',')[1] : buffer;
 
-        c.header('Content-Type', `image/png`);
+        const body = Uint8Array.from(Buffer.from(buffer, 'base64')).buffer;
 
-        return c.body(Buffer.from(buffer, 'base64'));
+        cacheAvatar(cacheKey, body);
+
+        return c.body(body);
     } finally {
         avatar.dispose();
     }
