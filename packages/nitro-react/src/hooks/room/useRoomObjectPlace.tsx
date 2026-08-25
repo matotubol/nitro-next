@@ -13,7 +13,7 @@ export const useRoomObjectPlace = () => {
     const room = useRoomSelector();
     const selectedObject = useRoomSelectedObject();
     const objectPlacementSource = useRoomObjectPlacementSource();
-    const { setSelectedObject, setPlacedObject } = useRoomSelectedObjectActions();
+    const { setSelectedObject, setPlacedObject, setRepeatedPlacement } = useRoomSelectedObjectActions();
     const { setFurnitureAlphaMultiplier } = useRoomObjectValidation();
     const { resetSelectedObject } = useRoomObjectSelect();
     const { handleFurnitureMove, handleWallItemMove } = useRoomObjectMove();
@@ -68,6 +68,12 @@ export const useRoomObjectPlace = () => {
                     }));
                 }
             }
+        }
+
+        // `§_-11f§` / `§_-P2S§`: carry this item's facing to the next copy the strip
+        // hands over, so a run of chairs does not reset to north every time
+        if (roomObject && category === RoomObjectCategoryEnum.Floor) {
+            setRepeatedPlacement({ typeId: selectedObject.typeId, direction: roomObject.getDirection().x });
         }
 
         setPlacedObject(new SelectedRoomObjectData(selectedObject.objectId, selectedObject.category));

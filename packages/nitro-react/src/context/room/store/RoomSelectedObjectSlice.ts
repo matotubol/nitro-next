@@ -9,6 +9,12 @@ type State = {
     selectedObject: ISelectedRoomObjectData | undefined;
     placedObject: ISelectedRoomObjectData | undefined;
     objectPlacementSource: RoomObjectPlacementSource;
+    /**
+     * `§_-11f§` / `§_-P2S§`: the type and facing of the last floor item put down
+     * during a repeated placement run, so the next copy of the same item comes
+     * out of the strip already turned the way the previous one ended up.
+     */
+    repeatedPlacement: { typeId: number; direction: number } | undefined;
 }
 
 type Actions = {
@@ -19,6 +25,7 @@ type Actions = {
     setSelectedObject: (data: ISelectedRoomObjectData | undefined) => void;
     setPlacedObject: (data: ISelectedRoomObjectData | undefined) => void;
     setObjectPlacementSource: (source: RoomObjectPlacementSource) => void;
+    setRepeatedPlacement: (data: { typeId: number; direction: number } | undefined) => void;
 };
 
 export const RoomSelectedObjectSliceInitialState: State = {
@@ -27,7 +34,8 @@ export const RoomSelectedObjectSliceInitialState: State = {
     selectedObjectCategory: RoomObjectCategoryEnum.Minimum,
     selectedObject: undefined,
     placedObject: undefined,
-    objectPlacementSource: RoomObjectPlacementSource.INVENTORY
+    objectPlacementSource: RoomObjectPlacementSource.INVENTORY,
+    repeatedPlacement: undefined
 };
 
 export type RoomSelectedObjectSlice = State & Actions;
@@ -41,4 +49,5 @@ export const createRoomSelectedObjectSlice: StateCreator<RoomSelectedObjectSlice
     setSelectedObject: (data: ISelectedRoomObjectData | undefined) => set({ selectedObject: data }),
     setPlacedObject: (data: ISelectedRoomObjectData | undefined) => set({ placedObject: data }),
     setObjectPlacementSource: (source: RoomObjectPlacementSource) => set({ objectPlacementSource: source }),
+    setRepeatedPlacement: (data: { typeId: number; direction: number } | undefined) => set({ repeatedPlacement: data }),
 });

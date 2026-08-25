@@ -14,7 +14,7 @@ export interface IAvatarRenderManager {
     isFigureContainerReady(container: IAvatarFigureContainer): boolean;
     createAvatarImage(figure: string, size: AvatarScaleType, gender: AvatarGenderType, listener: IAvatarImageListener, effectListener?: IAvatarEffectListener | undefined): IAvatarImage | undefined;
     createAvatarImageAsync(figure: string, size: AvatarScaleType, gender: AvatarGenderType): Promise<IAvatarImage | undefined>;
-    downloadAvatarFigure(container: IAvatarFigureContainer, listener: IAvatarImageListener): void;
+    downloadAvatarFigure(container: IAvatarFigureContainer, listener: IAvatarImageListener, figure?: string): void;
     downloadAvatarFigureAsync(container: IAvatarFigureContainer): Promise<void>;
     downloadAvatarEffectAsync(effectId: number): Promise<void>;
     getFigureClubLevel(container: IAvatarFigureContainer, gender: AvatarGenderType, searchParts?: string[]): number;

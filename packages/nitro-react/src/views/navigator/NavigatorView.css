@@ -1,0 +1,1420 @@
+/*
+ * Every number here is lifted from navigator_frame_2_xml, room_info_popup_bubble_xml,
+ * tag_xml and property_xml, and every colour from the layouts or from
+ * HabboNewNavigator (`getUserCountColor`, `getModulatedBackgroundColor`).
+ *
+ * Flash lays the window out inside the frame's client box - 572x589 at (3,36) of
+ * a 578x628 frame. The theme's Frame hands us a content box at (0,33) that is six
+ * pixels taller, so a flash client coordinate becomes a content coordinate by
+ * adding 3 to both axes, and the leftover 3px sits at the bottom.
+ */
+.navigator-window {
+    width: 578px;
+    min-width: 578px;
+    max-width: 578px;
+    height: 628px;
+    min-height: 500px;
+}
+
+.navigator-window.is-left-pane-hidden {
+    width: 425px;
+    min-width: 425px;
+    max-width: 425px;
+}
+
+.navigator-root {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    color: #000;
+    font-family: Ubuntu, sans-serif;
+}
+
+/* text_style="u_bold" and friends map onto the real bold face, not a synthesised
+   weight, and flash never antialiased these */
+.navigator-root,
+.navigator-room-info {
+    -webkit-font-smoothing: none;
+    text-rendering: optimizeSpeed;
+    font-smooth: never;
+}
+
+/* <border x="-3" y="-3" width="577" height="578" style="3" color="0x0eceae0"> */
+.navigator-surface {
+    position: absolute;
+    inset: 0;
+}
+
+/* <container name="white_background" x="-2" y="-5" width="576" height="33"> */
+.navigator-tab-strip {
+    position: absolute;
+    top: -2px;
+    left: 1px;
+    width: 576px;
+    height: 33px;
+    background: #fff;
+}
+
+/* <static_bitmap asset_uri="talent_task_progress_bg" x="-2" y="28" width="585" height="1"> */
+.navigator-tab-rule {
+    position: absolute;
+    top: 31px;
+    right: -7px;
+    left: 1px;
+    height: 1px;
+    background: #242424;
+}
+
+/* <tab_context name="top_view_select_tab_context" x="115" y="-1" width="450" height="30">
+   with the tab_selector inset 8px, so the first tab starts at client x=123 */
+.navigator-tabs {
+    position: absolute;
+    top: 2px;
+    left: 118px;
+    z-index: 30;
+    width: 450px;
+    height: 30px;
+    padding: 0 0 0 8px;
+    overflow: hidden;
+}
+
+.navigator-window.is-left-pane-hidden .navigator-tabs {
+    left: 38px;
+}
+
+/* <tab_button name="top_view_select_tab_button" width="88" height="32"> */
+.navigator-tabs > * {
+    width: 88px;
+    min-width: 88px;
+    max-width: 88px;
+    height: 32px;
+    min-height: 32px;
+    max-height: 32px;
+    padding: 0;
+}
+
+/* <region name="temp_back" x="4" y="2" width="28" height="25"> - shows the pane again */
+.navigator-show-left {
+    position: absolute;
+    top: 5px;
+    left: 7px;
+    z-index: 40;
+    width: 28px;
+    height: 25px;
+    cursor: pointer;
+}
+
+.navigator-show-left > * {
+    position: absolute;
+    top: 2px;
+    left: 10px;
+}
+
+/* -- left pane ---------------------------------------------------------- */
+
+/* <border name="left_pane" x="6" y="35" width="141" height="538" style="2"> */
+.navigator-left-pane {
+    position: absolute;
+    top: 38px;
+    bottom: 19px;
+    left: 9px;
+    width: 141px;
+    padding: 0;
+}
+
+/* <region name="left_pane_hide" height="21"> carrying <border ... color="0x0fba800">.
+   The border is authored 27 tall but only the region's 21 are on show. */
+.navigator-left-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 141px;
+    height: 21px;
+    padding: 0;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+/* border_colorless is rounded on all four corners. The header has to meet the
+   list below it on a straight edge, so the skin runs past the bottom and the
+   header clips it - only the top curve survives */
+.navigator-left-header-skin {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 141px;
+    height: 33px;
+}
+
+.navigator-left-header-icon {
+    position: absolute;
+    top: 2px;
+    left: 3px;
+}
+
+/* <text x="20" y="2" width="149" height="17" text_style="id_heading_2"> */
+.navigator-left-title {
+    position: absolute;
+    top: 2px;
+    left: 20px;
+    width: 118px;
+    height: 17px;
+    overflow: hidden;
+    color: #fff;
+    font-family: UbuntuBold, sans-serif;
+    font-size: 12px;
+    line-height: 17px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* <scrollable_itemlist_vertical name="quicklinks_list" x="5" y="25" width="136" height="509" style="100"> */
+.navigator-quicklinks {
+    position: absolute;
+    top: 25px;
+    bottom: 4px;
+    left: 5px;
+    width: 136px;
+}
+
+.navigator-quicklinks-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* <region name="quick_link" width="132" height="17"> */
+.navigator-quicklink {
+    position: relative;
+    width: 100%;
+    height: 17px;
+    min-height: 17px;
+    cursor: pointer;
+}
+
+.navigator-quicklink-label {
+    position: absolute;
+    top: 0;
+    right: 17px;
+    left: 0;
+    height: 17px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 17px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* <container_button name="remove_quick_link" x="115" y="1" width="16" height="16"> - hover only */
+.navigator-quicklink-remove {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    display: none;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.navigator-quicklink:hover .navigator-quicklink-remove {
+    display: flex;
+}
+
+/* -- right pane --------------------------------------------------------- */
+
+/* <container name="right_pane" x="159" y="25" width="410" height="548"> */
+.navigator-right-pane {
+    position: absolute;
+    top: 28px;
+    bottom: 19px;
+    left: 162px;
+    width: 410px;
+}
+
+.navigator-window.is-left-pane-hidden .navigator-right-pane {
+    left: 10px;
+}
+
+/* <container name="search_tools" x="0" y="3" width="408" height="36"> */
+.navigator-search-tools {
+    position: absolute;
+    top: 3px;
+    left: 0;
+    z-index: 25;
+    width: 408px;
+    height: 36px;
+}
+
+/* <dropmenu name="filter_type_drop_menu" x="4" y="10" width="116" height="24" style="4"> */
+.navigator-filter-menu {
+    position: absolute;
+    top: 10px;
+    left: 4px;
+    width: 116px;
+    height: 24px;
+    min-height: 24px;
+    padding: 3px 22px 3px 7px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.navigator-filter-list {
+    position: absolute;
+    top: 34px;
+    left: 4px;
+    z-index: 40;
+    display: flex;
+    width: 116px;
+    flex-direction: column;
+    gap: 0;
+}
+
+.navigator-filter-item {
+    height: 19px;
+    padding: 1px 6px;
+    font-size: 12px;
+    line-height: 17px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+/* <border x="133" y="10" width="235" height="24" style="4"> */
+.navigator-search-field {
+    position: absolute;
+    top: 10px;
+    left: 133px;
+    width: 235px;
+    height: 24px;
+    padding: 0;
+}
+
+/* <input name="search_input" x="6" y="4" height="16"> */
+.navigator-search-input {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    width: 209px;
+    height: 16px;
+    border: 0;
+    background: transparent;
+    color: #000;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 16px;
+    outline: 0;
+}
+
+/* SearchView paints the placeholder itself, in 0x9f9f9f italics */
+.navigator-search-input::placeholder {
+    color: #9f9f9f;
+    font-family: UbuntuItalics, sans-serif;
+    opacity: 1;
+}
+
+/* <region name="clear_search_button" x="215" y="4" width="20" height="20"> */
+.navigator-search-clear {
+    position: absolute;
+    top: 4px;
+    left: 215px;
+    display: flex;
+    width: 20px;
+    height: 20px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+/* <container name="refreshButtonContainer" x="375" y="10" width="25" height="25">
+   holding a <button style="5" color="0x07cc561" width="25" height="23"> */
+.navigator-refresh {
+    position: absolute;
+    top: 10px;
+    left: 375px;
+    width: 25px;
+    min-width: 25px;
+    height: 23px;
+    min-height: 23px;
+    padding: 0;
+}
+
+/* <scrollable_itemlist_vertical name="block_results" x="1" y="45" width="407" height="423" style="3"> */
+.navigator-results {
+    position: absolute;
+    top: 45px;
+    bottom: 80px;
+    left: 1px;
+    width: 407px;
+}
+
+.navigator-results-content {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* <container name="search_waiting_for_results_mask" x="0" y="42" width="392" height="429" color="0x6feceae0"> */
+.navigator-busy-mask {
+    position: absolute;
+    top: 42px;
+    bottom: 77px;
+    left: 0;
+    z-index: 20;
+    width: 392px;
+    background: rgb(236 234 224 / 43.5%);
+}
+
+/* -- category blocks ------------------------------------------------------ */
+
+/* <container name="category_container"> wrapping a plain white <background> - no skin */
+.navigator-block {
+    width: 100%;
+    background: #fff;
+}
+
+/* <container name="category_header" height="30"> */
+.navigator-block-header {
+    position: relative;
+    height: 30px;
+    background: #fff;
+}
+
+.navigator-block-header.is-collapsed {
+    height: 26px;
+}
+
+/* <region name="category_collapse" x="5" y="7" width="11" height="19"> */
+.navigator-block-toggle {
+    position: absolute;
+    top: 7px;
+    left: 5px;
+    display: flex;
+    width: 11px;
+    height: 19px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.navigator-block-header.is-collapsed .navigator-block-toggle {
+    top: 4px;
+    height: 18px;
+}
+
+/* <region name="category_name_region" width="142" height="27"> - 209 wide when collapsed */
+.navigator-block-name-region {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 142px;
+    height: 27px;
+    cursor: pointer;
+}
+
+.navigator-block-header.is-collapsed .navigator-block-name-region {
+    width: 209px;
+}
+
+/* <text name="category_name" x="20" y="5" font_size="14" text_color="0xf557b"> */
+.navigator-block-name {
+    position: absolute;
+    top: 5px;
+    right: 0;
+    left: 20px;
+    height: 19px;
+    overflow: hidden;
+    color: #0f557b;
+    font-size: 14px;
+    line-height: 19px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* <itemlist_horizontal name="category_controls_itemlist" spacing="5"> - right aligned */
+.navigator-block-controls {
+    position: absolute;
+    top: 5px;
+    right: 8px;
+    display: flex;
+    height: 18px;
+    align-items: center;
+    gap: 5px;
+}
+
+.navigator-block-control {
+    display: flex;
+    width: 11px;
+    height: 18px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.navigator-block-control.is-wide {
+    width: 19px;
+}
+
+/* <itemlist name="category_content" x="4" y="29"> - 5px right margin, 3px below */
+.navigator-block-body {
+    display: flex;
+    flex-direction: column;
+    padding: 0 5px 3px 4px;
+    gap: 0;
+}
+
+.navigator-block-body.is-tiles {
+    gap: 5px;
+}
+
+/* <itemlist_horizontal name="navigator_entry_tile_container" spacing="7"> - three per row */
+.navigator-tile-row {
+    display: flex;
+    gap: 7px;
+}
+
+/* <container name="no_results_container" width="388" height="53"> */
+.navigator-no-results {
+    position: relative;
+    width: 388px;
+    height: 53px;
+}
+
+/* <text x="51" y="0" width="286" height="21" text_style="u_headline_medium"> */
+.navigator-no-results-text {
+    position: absolute;
+    top: 0;
+    left: 51px;
+    width: 286px;
+    height: 21px;
+    overflow: hidden;
+    font-size: 16px;
+    font-family: UbuntuBold, sans-serif;
+    line-height: 21px;
+}
+
+/* -- row entry (navigator_entry_row_container, 383x20) --------------------- */
+.navigator-row {
+    position: relative;
+    width: 100%;
+    height: 20px;
+    min-height: 20px;
+    padding: 0;
+    cursor: pointer;
+}
+
+/* <container name="room_info_container" x="0" y="1" height="18"> */
+.navigator-row-inner {
+    position: absolute;
+    top: 1px;
+    right: 0;
+    left: 0;
+    height: 18px;
+}
+
+.navigator-row-usercount {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* <text name="room_name" x="44" y="1" width="282" height="16"> */
+.navigator-row-name {
+    position: absolute;
+    top: 1px;
+    right: 55px;
+    left: 44px;
+    height: 16px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* <static_bitmap name="doormode_icon" x="324" y="2" width="16" height="16"> */
+.navigator-row-doormode {
+    position: absolute;
+    top: 2px;
+    right: 41px;
+    display: flex;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+}
+
+/* <static_bitmap name="grouphome_icon" x="341" y="2" width="16" height="16"> */
+.navigator-row-group {
+    position: absolute;
+    top: 2px;
+    right: 24px;
+    display: flex;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+}
+
+/* <region name="info_popup_click_region" x="359" y="0" width="18" height="18"> */
+.navigator-row-info {
+    position: absolute;
+    top: 0;
+    right: 4px;
+    display: flex;
+    width: 18px;
+    height: 18px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+/* -- user count pill (room_info_usercount_border, 40x18) ------------------- */
+.navigator-usercount {
+    position: relative;
+    width: 40px;
+    height: 18px;
+    padding: 0;
+}
+
+/* <static_bitmap name="room_usercount_icon" x="0" y="1" width="13" height="14"> - an 18x18
+   asset squeezed into 13x14, which is what stretched_x/y default to */
+.navigator-usercount-icon {
+    position: absolute;
+    top: 2px;
+    left: 3px;
+    width: 13px;
+    height: 14px;
+    background-image: url('/assets/flash/navigator/usercount.png');
+    background-repeat: no-repeat;
+    background-size: 13px 14px;
+    image-rendering: pixelated;
+}
+
+/* <label name="room_usercount" x="14" y="0" width="17" height="17" text_style="u_bold"> */
+.navigator-usercount-label {
+    position: absolute;
+    top: 1px;
+    left: 17px;
+    width: 20px;
+    height: 17px;
+    overflow: hidden;
+    color: #fff;
+    font-size: 12px;
+    font-family: UbuntuBold, sans-serif;
+    line-height: 17px;
+    white-space: nowrap;
+}
+
+/* -- tile entry (navigator_entry_tile, 122x146) --------------------------- */
+.navigator-tile {
+    position: relative;
+    width: 122px;
+    min-width: 122px;
+    height: 146px;
+    padding: 0;
+    cursor: pointer;
+}
+
+/* <container x="7" y="6" width="108" height="109" color="black"> */
+.navigator-tile-image {
+    position: absolute;
+    top: 6px;
+    left: 7px;
+    width: 108px;
+    height: 109px;
+    background: #000;
+}
+
+/* <static_bitmap name="room_pic_placeholder" x="8" y="7" width="106" height="106" pivot_point="center"> */
+.navigator-tile-thumb {
+    position: absolute;
+    top: 7px;
+    left: 8px;
+    display: grid;
+    width: 106px;
+    height: 106px;
+    place-items: center;
+    overflow: hidden;
+}
+
+.navigator-tile-thumb img {
+    display: block;
+    max-width: none;
+    image-rendering: pixelated;
+}
+
+/* <widget name="room_group_badge" x="4" y="-3" width="50" height="61"> */
+.navigator-tile-badge {
+    position: absolute;
+    top: -3px;
+    left: 4px;
+    display: grid;
+    width: 50px;
+    height: 61px;
+    place-items: center;
+    pointer-events: none;
+}
+
+.navigator-tile-badge img {
+    display: block;
+    image-rendering: pixelated;
+}
+
+/* <text name="room_name" x="0" y="116" width="100" height="30" font_size="10" text_style="u_bold"
+   margin_left="6" margin_top="2" margin_right="6"> */
+.navigator-tile-name {
+    position: absolute;
+    top: 118px;
+    left: 6px;
+    display: -webkit-box;
+    width: 88px;
+    max-height: 26px;
+    overflow: hidden;
+    font-size: 10px;
+    font-family: UbuntuBold, sans-serif;
+    line-height: 13px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.navigator-tile-usercount {
+    position: absolute;
+    top: 93px;
+    left: 40px;
+}
+
+/* <static_bitmap name="doormode_icon" x="92" y="96" width="16" height="14"> */
+.navigator-tile-doormode {
+    position: absolute;
+    top: 96px;
+    left: 92px;
+    display: flex;
+    width: 16px;
+    height: 14px;
+    align-items: center;
+    justify-content: center;
+}
+
+/* <region name="info_popup_click_region" x="98" y="120" width="18" height="18"> */
+.navigator-tile-info {
+    position: absolute;
+    top: 120px;
+    left: 98px;
+    display: flex;
+    width: 18px;
+    height: 18px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+/* -- create / random / promote (189x60, art is one 187x59 bitmap) ---------- */
+/* border_4 and border_5 are a 1px black outline over white, so the 187x59 artwork
+   is inset two pixels all round: one of white, then the black edge outside it */
+.navigator-action {
+    position: absolute;
+    bottom: 0;
+    width: 191px;
+    height: 63px;
+    padding: 0;
+    cursor: pointer;
+}
+
+/* <border name="create_room_border" style="4"> and its style 5 siblings. It sits
+   under the artwork rather than around it, so its border image cannot eat an edge */
+.navigator-action-frame {
+    position: absolute;
+    inset: 0;
+}
+
+/* <static_bitmap width="186" height="59" pivot_point="center"> - the 187x59 bitmap
+   already carries the button's border, gradient and shine, centred in the 189x60 slot */
+.navigator-action-art {
+    position: absolute;
+    inset: 0;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 187px 59px;
+    image-rendering: pixelated;
+    pointer-events: none;
+}
+
+.navigator-action.is-create {
+    left: 0;
+}
+
+.navigator-action.is-random,
+.navigator-action.is-promote {
+    left: 205px;
+}
+
+.navigator-action.is-create .navigator-action-art {
+    background-image: url('/assets/flash/navigator/create_room.png');
+}
+
+.navigator-action.is-random .navigator-action-art {
+    background-image: url('/assets/flash/navigator/random_room.png');
+}
+
+.navigator-action.is-promote .navigator-action-art {
+    background-image: url('/assets/flash/navigator/promote_room.png');
+}
+
+/* <text x="60" y="22" width="125" height="17" text_style="id_heading_2"
+   etching_color="0x3f000000" etching_position="bottom-right"> */
+.navigator-action-label {
+    position: absolute;
+    top: 24px;
+    left: 62px;
+    width: 125px;
+    height: 17px;
+    overflow: hidden;
+    color: #fff;
+    font-size: 12px;
+    font-family: UbuntuBold, sans-serif;
+    line-height: 17px;
+    text-align: center;
+    text-shadow: 1px 1px 0 rgb(0 0 0 / 24.7%);
+    pointer-events: none;
+}
+
+/* -- room info bubble (room_info_popup_bubble_xml, 374 wide) --------------- */
+/* `showAt` anchors the bubble's vertical centre on the click point and opens it
+   to the right, so the pointer sits centred on the left edge */
+.navigator-room-info {
+    position: fixed;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    color: #000;
+    font-family: Ubuntu, sans-serif;
+    font-size: 12px;
+    /* centring on the anchor lands on a half pixel whenever the bubble's height is
+       odd, and chrome then resamples the nine slice into faint seams at the band
+       boundaries - snapping the offset keeps the skin pixel exact */
+    transform: translateY(-50%);
+    transform: translateY(round(-50%, 1px));
+    pointer-events: auto;
+}
+
+/* habbo_skin_bubble_7, a 7/7/8/7 nine slice. main_content sits at (14,15) of the
+   374 wide bubble, which is where the padding comes from */
+.navigator-room-info-bubble {
+    width: 374px;
+    padding: 15px 15px 11px 14px;
+    border-image-source: url('/assets/flash/navigator/room_info_bubble.png');
+    border-image-slice: 7 7 8 7 fill;
+    border-image-width: 7px 7px 8px 7px;
+    border-image-repeat: stretch;
+    image-rendering: pixelated;
+}
+
+/* <itemlist name="main_content" width="345" spacing="3"> */
+.navigator-room-info-content {
+    display: flex;
+    width: 345px;
+    flex-direction: column;
+    gap: 3px;
+}
+
+/* <border name="header" width="345" height="125" style="2"> with header_content at (7,6) */
+.navigator-room-info-header {
+    position: relative;
+    height: 125px;
+    min-height: 125px;
+    padding: 0;
+}
+
+.navigator-room-info-thumb {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    display: grid;
+    width: 112px;
+    height: 112px;
+    place-items: center;
+    overflow: hidden;
+    background: #000;
+}
+
+.navigator-room-info-thumb img {
+    display: block;
+    max-width: none;
+    image-rendering: pixelated;
+}
+
+/* <widget name="room_group_badge" x="1" y="1" width="48" height="48"> */
+.navigator-room-info-badge {
+    position: absolute;
+    top: 7px;
+    left: 9px;
+    display: grid;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    pointer-events: none;
+}
+
+.navigator-room-info-badge img {
+    display: block;
+    image-rendering: pixelated;
+}
+
+/* <text name="room_name" x="6" y="0" width="214" height="33" text_style="u_bold"> */
+.navigator-room-info-name {
+    position: absolute;
+    top: 6px;
+    left: 126px;
+    width: 214px;
+    max-height: 33px;
+    overflow: hidden;
+    font-size: 12px;
+    font-family: UbuntuBold, sans-serif;
+    line-height: 16px;
+    word-break: break-word;
+}
+
+/* <text name="room_desc" x="5" y="33" width="214" height="80"> */
+.navigator-room-info-desc {
+    position: absolute;
+    top: 39px;
+    left: 125px;
+    width: 214px;
+    height: 80px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 16px;
+    word-break: break-word;
+}
+
+/* <container name="room_group_owner_container" height="30"> */
+.navigator-room-info-people {
+    position: relative;
+    height: 30px;
+    min-height: 30px;
+}
+
+/* <region name="room_owner_region" x="5" y="3" width="150" height="30"> */
+.navigator-room-info-owner {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    width: 150px;
+    height: 30px;
+    cursor: pointer;
+}
+
+/* <region name="room_group_region" x="175" y="3" width="170" height="30"> */
+.navigator-room-info-group {
+    position: absolute;
+    top: 3px;
+    left: 175px;
+    width: 170px;
+    height: 30px;
+    cursor: pointer;
+}
+
+/* friend_bar_friendlist_eye and newnavigator_icon_group, both squeezed to 15x13 */
+.navigator-room-info-people-icon {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 15px;
+    height: 13px;
+    background-repeat: no-repeat;
+    background-size: 15px 13px;
+    image-rendering: pixelated;
+}
+
+.navigator-room-info-people-icon.is-owner {
+    background-image: url('/assets/flash/navigator/icons/owner_eye.png');
+}
+
+.navigator-room-info-people-icon.is-group {
+    background-image: url('/assets/flash/navigator/icons/room_group.png');
+}
+
+.navigator-room-info-people-name {
+    position: absolute;
+    left: 20px;
+    width: 130px;
+    height: 17px;
+    overflow: hidden;
+    font-size: 12px;
+    font-family: UbuntuBold, sans-serif;
+    line-height: 17px;
+    text-decoration: underline;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.navigator-room-info-owner .navigator-room-info-people-name {
+    top: -2px;
+}
+
+.navigator-room-info-group .navigator-room-info-people-name {
+    top: 0;
+    width: 150px;
+}
+
+/* <container name="newMid" height="80"> - properties left, actions right */
+.navigator-room-info-mid {
+    position: relative;
+    height: 80px;
+    min-height: 80px;
+}
+
+/* <itemlist name="properties" width="263"> of property_xml rows (155x20) */
+.navigator-room-info-properties {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 174px;
+}
+
+.navigator-room-info-property {
+    position: relative;
+    height: 20px;
+}
+
+.navigator-room-info-property-name {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 70px;
+    height: 20px;
+    overflow: hidden;
+    font-size: 12px;
+    font-family: UbuntuBold, sans-serif;
+    line-height: 20px;
+    white-space: nowrap;
+}
+
+.navigator-room-info-property-value {
+    position: absolute;
+    top: 0;
+    left: 70px;
+    width: 104px;
+    height: 20px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* <container name="midBottom" x="166"> with its itemlist at x=12 */
+.navigator-room-info-toggles {
+    position: absolute;
+    top: 0;
+    left: 178px;
+    display: flex;
+    width: 170px;
+    flex-direction: column;
+}
+
+.navigator-room-info-toggle {
+    position: relative;
+    height: 20px;
+    min-height: 20px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+}
+
+.navigator-room-info-toggle-icon {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    width: 20px;
+    height: 20px;
+    align-items: center;
+    justify-content: center;
+}
+
+.navigator-room-info-toggle-label {
+    position: absolute;
+    top: 1px;
+    right: 0;
+    left: 20px;
+    height: 17px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 17px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* <container name="tag_and_group_info" height="23"> */
+.navigator-room-info-bottom {
+    position: relative;
+    min-height: 23px;
+}
+
+/* <itemlist_horizontal name="tag_list" spacing="2"> of tag_xml chips */
+.navigator-room-info-tags {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    width: 275px;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+
+/* tag_xml: <region background color="0xfff1a700"> + <text x="3" y="2" text_style="u_small" white> */
+.navigator-room-info-tag {
+    height: 19px;
+    padding: 2px 3px;
+    background: #f1a700;
+    color: #fff;
+    font-size: 10px;
+    line-height: 15px;
+    cursor: pointer;
+}
+
+.navigator-room-info-groupmodes {
+    position: absolute;
+    top: 0;
+    left: 279px;
+    display: flex;
+    gap: 2px;
+}
+
+.navigator-room-info-groupmode {
+    display: flex;
+    width: 18px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+}
+
+/* <border name="event_info" x="7" y="23" width="331" height="55" color="0x0f1a700"> */
+.navigator-room-info-event {
+    position: relative;
+    height: 55px;
+    min-height: 55px;
+    margin: 4px 7px 0;
+    padding: 0;
+}
+
+.navigator-room-info-event-icon {
+    position: absolute;
+    top: 9px;
+    left: 6px;
+    display: flex;
+    width: 42px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+}
+
+.navigator-room-info-event-name {
+    position: absolute;
+    top: 3px;
+    left: 54px;
+    width: 275px;
+    height: 16px;
+    overflow: hidden;
+    color: #fff;
+    font-size: 12px;
+    font-family: UbuntuBold, sans-serif;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.navigator-room-info-event-desc {
+    position: absolute;
+    top: 19px;
+    left: 54px;
+    width: 275px;
+    height: 36px;
+    overflow: hidden;
+    color: #fff;
+    font-size: 12px;
+    line-height: 12px;
+    white-space: pre-line;
+}
+
+/* -- door prompts -------------------------------------------------------- */
+.navigator-modal-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    overflow: hidden;
+    pointer-events: auto;
+}
+
+.navigator-door {
+    top: 50%;
+    left: 50%;
+    width: 320px;
+    margin-top: -90px;
+    margin-left: -160px;
+}
+
+.navigator-door-body {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    padding: 10px;
+    gap: 8px;
+}
+
+.navigator-door-message {
+    color: #2e2e2e;
+    font-family: Ubuntu, sans-serif;
+    font-size: 13px;
+    line-height: 17px;
+    text-align: center;
+}
+
+.navigator-door-input {
+    width: 100%;
+    height: 22px;
+    padding: 0 6px;
+    border: 0;
+    background: transparent;
+    color: #000;
+    font-family: Ubuntu, sans-serif;
+    font-size: 12px;
+    line-height: 22px;
+}
+
+.navigator-door-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+
+.navigator-door-button {
+    width: 110px;
+    height: 27px;
+    min-height: 27px;
+}
+
+/* -- room creator -------------------------------------------------------- */
+.navigator-creator-window {
+    top: 50%;
+    left: 50%;
+    width: 420px;
+    height: 520px;
+    margin-top: -260px;
+    margin-left: -210px;
+}
+
+.navigator-creator {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    padding: 8px 10px 10px;
+    gap: 6px;
+    overflow: hidden;
+}
+
+.navigator-creator-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.navigator-creator-label {
+    color: #4f4f4f;
+    font-family: Ubuntu, sans-serif;
+    font-size: 11px;
+    line-height: 15px;
+}
+
+.navigator-creator-input,
+.navigator-creator-select {
+    width: 100%;
+    height: 24px;
+    padding: 0 6px;
+    border: 0;
+    background: transparent;
+    color: #000;
+    font-family: Ubuntu, sans-serif;
+    font-size: 12px;
+    line-height: 24px;
+}
+
+.navigator-creator-input.is-multiline {
+    height: 48px;
+    padding: 4px 6px;
+    line-height: 16px;
+    resize: none;
+}
+
+.navigator-creator-models {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 4px;
+    overflow: hidden;
+}
+
+.navigator-creator-model-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+}
+
+.navigator-creator-model {
+    position: relative;
+    display: grid;
+    height: 66px;
+    place-items: center;
+    padding: 2px;
+    overflow: hidden;
+    background: #f3f1e9;
+    cursor: pointer;
+}
+
+.navigator-creator-model.is-selected {
+    background: #82d1ed;
+}
+
+.navigator-creator-model[aria-disabled='true'] {
+    cursor: default;
+    filter: grayscale(1);
+    opacity: 0.5;
+}
+
+.navigator-creator-model img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    image-rendering: pixelated;
+}
+
+.navigator-creator-model-size {
+    position: absolute;
+    right: 2px;
+    bottom: 1px;
+    color: #4f4f4f;
+    font-family: Ubuntu, sans-serif;
+    font-size: 9px;
+    line-height: 11px;
+}
+
+.navigator-creator-buttons {
+    display: flex;
+    flex: 0 0 auto;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.navigator-creator-button {
+    min-width: 0;
+    flex: 1 1 0;
+    height: 27px;
+    min-height: 27px;
+}
+
+/* -- doorbell widget ----------------------------------------------------- */
+.navigator-doorbell {
+    position: fixed;
+    top: 90px;
+    right: 16px;
+    z-index: 900;
+    width: 280px;
+    pointer-events: auto;
+}
+
+.navigator-doorbell-body {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    padding: 8px 10px;
+    gap: 6px;
+}
+
+.navigator-doorbell-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.navigator-doorbell-name {
+    overflow: hidden;
+    flex: 1;
+    color: #2e2e2e;
+    font-family: Ubuntu, sans-serif;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.navigator-doorbell-button {
+    width: 64px;
+    height: 24px;
+    min-height: 24px;
+}
+
+/* -- room settings ------------------------------------------------------- */
+.navigator-settings-window {
+    top: 50%;
+    left: 50%;
+    width: 420px;
+    margin-top: -260px;
+    margin-left: -210px;
+}
+
+.navigator-settings {
+    height: auto;
+}
+
+.navigator-settings-row {
+    display: flex;
+    gap: 8px;
+}
+
+.navigator-settings-checks {
+    display: grid;
+    padding: 2px 0;
+    gap: 4px;
+    grid-template-columns: 1fr 1fr;
+}
+
+.navigator-settings-check {
+    display: flex;
+    align-items: center;
+    color: #2e2e2e;
+    cursor: pointer;
+    font-family: Ubuntu, sans-serif;
+    font-size: 12px;
+    gap: 5px;
+}
+
+.navigator-settings-error {
+    color: #a01d1d;
+    font-family: Ubuntu, sans-serif;
+    font-size: 12px;
+    text-align: center;
+}

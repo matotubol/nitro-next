@@ -70,6 +70,7 @@ export class RoomSpriteCanvas implements IRoomRenderingCanvas {
     private _noSpriteVisibilityChecking: boolean = false;
     private _usesExclusionRectangles: boolean = false;
     private _usesMask: boolean = true;
+    private _usesBackground: boolean = true;
     private _zDirty: boolean = false;
 
     private _canvasElement: HTMLCanvasElement | undefined = undefined;
@@ -171,6 +172,7 @@ export class RoomSpriteCanvas implements IRoomRenderingCanvas {
             this._background.tint = 0;
             this._background.width = width;
             this._background.height = height;
+            this._background.visible = this._usesBackground;
 
             if (this._master) this._master.addChildAt(this._background, 0);
         } else {
@@ -210,6 +212,17 @@ export class RoomSpriteCanvas implements IRoomRenderingCanvas {
 
         this._width = width;
         this._height = height;
+    }
+
+    /**
+     * The canvas paints an opaque black sprite behind the room. A room filling the
+     * screen wants it; a preview drawn over the UI must not have it, or the widget
+     * reads as a black box. Safe to call before `initialize`.
+     */
+    public setBackground(flag: boolean): void {
+        this._usesBackground = flag;
+
+        if (this._background) this._background.visible = flag;
     }
 
     public setMask(flag: boolean): void {

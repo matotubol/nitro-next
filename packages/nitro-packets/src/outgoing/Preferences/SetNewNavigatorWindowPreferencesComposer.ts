@@ -1,4 +1,4 @@
-import { IOutgoingPacket } from '@nitrodevco/nitro-api';
+import { IOutgoingPacket, NavigatorViewModeType } from '@nitrodevco/nitro-api';
 
 export type SetNewNavigatorWindowPreferencesComposerType = {
     x: number;

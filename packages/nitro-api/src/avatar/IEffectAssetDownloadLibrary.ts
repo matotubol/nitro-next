@@ -5,4 +5,5 @@ export interface IEffectAssetDownloadLibrary {
     readonly libraryName: string;
     readonly animations: IAssetAnimation[];
     readonly isLoaded: boolean;
+    readonly isFailed: boolean;
 }

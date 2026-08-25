@@ -6,6 +6,7 @@ export * from './actions/useSystemActions';
 export * from './actions/useTranslation';
 export * from './actions/useWindowActions';
 export * from './selectors/useFurnitureDataSelector';
+export * from './selectors/useIsInRoom';
 export * from './selectors/useIsWindowVisible';
 export * from './selectors/useWindowSelectors';
 export * from './selectors/useWindowZIndex';

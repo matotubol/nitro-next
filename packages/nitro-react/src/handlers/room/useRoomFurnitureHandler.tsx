@@ -4,11 +4,13 @@ import type { IRoomFloorItem, IRoomWallItem } from "@nitrodevco/nitro-packets";
 import { DiceValueMessage, ItemAddMessage, ItemDataUpdateMessage, ItemRemoveMessage, ItemsMessage, ItemsStateUpdateMessage, ItemStateUpdateMessage, ItemUpdateMessage, ObjectAddMessage, ObjectDataUpdateMessage, ObjectRemoveMessage, ObjectRemoveMultipleMessage, ObjectsDataUpdateMessage, ObjectsMessage, ObjectUpdateMessage, OneWayDoorStatusMessage, SlideObjectBundleMessage, WiredMovementsMessage } from "@nitrodevco/nitro-packets";
 import { LegacyWallGeometry, ObjectMoveUpdateMessage } from "@nitrodevco/nitro-renderer";
 
-import { useRoomSelector } from "#base/context";
-import { useMessageListener } from "#base/hooks";
+import { useOwnUserId, useRoomSelector } from "#base/context";
+import { useMessageListener, useRoomFurniturePickupEffect } from "#base/hooks";
 
 export const useRoomFurnitureHandler = () => {
     const room = useRoomSelector();
+    const ownUserId = useOwnUserId();
+    const { playPickupTransition } = useRoomFurniturePickupEffect();
 
     const addRoomObjectFloor = (item: IRoomFloorItem) => {
         if (!room) return;
@@ -91,24 +93,29 @@ export const useRoomFurnitureHandler = () => {
     useMessageListener(ObjectRemoveMessage, data => {
         if (!room) return;
 
-        const isOwner = false;
+        // `disposeObjectFurniture` compares the picker against our own id - the
+        // remove is broadcast to the whole room, the icon only flies for us
+        const isOwner = data.pickerId === ownUserId;
 
-        if (data.delay > 0) {
-            setTimeout(() => {
-                if (!room) return;
+        const remove = () => {
+            if (!room) return;
 
-                room.removeRoomObjectFloor(data.objectId, isOwner);
-            }, data.delay);
-        } else {
+            playPickupTransition(data.objectId, RoomObjectCategoryEnum.Floor, data.pickerId);
+
             room.removeRoomObjectFloor(data.objectId, isOwner);
-        }
+        };
+
+        if (data.delay > 0) setTimeout(remove, data.delay);
+        else remove();
     });
 
     useMessageListener(ObjectRemoveMultipleMessage, data => {
         if (!room) return;
 
+        const isOwner = data.pickerId === ownUserId;
+
         for (const objectId of data.objectIds) {
-            const isOwner = false;
+            playPickupTransition(objectId, RoomObjectCategoryEnum.Floor, data.pickerId);
 
             room.removeRoomObjectFloor(objectId, isOwner);
         }
@@ -153,7 +160,9 @@ export const useRoomFurnitureHandler = () => {
     useMessageListener(ItemRemoveMessage, data => {
         if (!room) return;
 
-        const isOwner = false;
+        const isOwner = data.pickerId === ownUserId;
+
+        playPickupTransition(data.objectId, RoomObjectCategoryEnum.Wall, data.pickerId);
 
         room.removeRoomObjectWall(data.objectId, isOwner);
     });

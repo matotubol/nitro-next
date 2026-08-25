@@ -1,24 +1,30 @@
-import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
+import type { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
-// TODO(Items: ImmutableArray<FurnitureItemSnapshot>): Unknown type 'ImmutableArray<FurnitureItemSnapshot>'. Add override mapping.
+import { FurnitureListItemParser } from './Data/FurnitureListItemParser';
+import type { IFurnitureListItem } from './Data/IFurnitureListItem';
 
 export type FurniListEventMessageType = {
-  totalFragments: number;
-  currentFragment: number;
-  items: any;
+    totalFragments: number;
+    currentFragment: number;
+    items: IFurnitureListItem[];
 };
 
-export class FurniListEventMessage implements IIncomingPacket<FurniListEventMessageType>
-{
-  public parse(wrapper: IMessageDataWrapper): FurniListEventMessageType
-  {
+export class FurniListEventMessage implements IIncomingPacket<FurniListEventMessageType> {
+    public parse(wrapper: IMessageDataWrapper): FurniListEventMessageType {
+        const packet: FurniListEventMessageType = {
+            totalFragments: wrapper.readInt(),
+            currentFragment: wrapper.readInt(),
+            items: []
+        };
 
-    const packet: FurniListEventMessageType = {
-      totalFragments: wrapper.readInt(),
-      currentFragment: wrapper.readInt(),
-      items: undefined as any, // Unknown type 'ImmutableArray<FurnitureItemSnapshot>'. Add override mapping.
-    };
+        let count = wrapper.readInt();
 
-    return packet;
-  }
+        while (count > 0) {
+            packet.items.push(FurnitureListItemParser(wrapper));
+
+            count--;
+        }
+
+        return packet;
+    }
 }

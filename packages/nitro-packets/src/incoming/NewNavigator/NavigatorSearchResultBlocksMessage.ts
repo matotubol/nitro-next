@@ -1,24 +1,30 @@
-import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
+import type { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
-// TODO(Blocks: ImmutableArray<NavigatorSearchResultBlockSnapshot>): Unknown type 'ImmutableArray<NavigatorSearchResultBlockSnapshot>'. Add override mapping.
+import type { INavigatorSearchResultBlock } from './Data/NavigatorSearchResultBlockParser';
+import { NavigatorSearchResultBlockParser } from './Data/NavigatorSearchResultBlockParser';
 
 export type NavigatorSearchResultBlocksMessageType = {
-  searchCodeOriginal: string;
-  filteringData: string;
-  blocks: any;
+    searchCodeOriginal: string;
+    filteringData: string;
+    blocks: INavigatorSearchResultBlock[];
 };
 
-export class NavigatorSearchResultBlocksMessage implements IIncomingPacket<NavigatorSearchResultBlocksMessageType>
-{
-  public parse(wrapper: IMessageDataWrapper): NavigatorSearchResultBlocksMessageType
-  {
+export class NavigatorSearchResultBlocksMessage implements IIncomingPacket<NavigatorSearchResultBlocksMessageType> {
+    public parse(wrapper: IMessageDataWrapper): NavigatorSearchResultBlocksMessageType {
+        const packet: NavigatorSearchResultBlocksMessageType = {
+            searchCodeOriginal: wrapper.readString(),
+            filteringData: wrapper.readString(),
+            blocks: []
+        };
 
-    const packet: NavigatorSearchResultBlocksMessageType = {
-      searchCodeOriginal: wrapper.readString(),
-      filteringData: wrapper.readString(),
-      blocks: undefined as any, // Unknown type 'ImmutableArray<NavigatorSearchResultBlockSnapshot>'. Add override mapping.
-    };
+        let count = wrapper.readInt();
 
-    return packet;
-  }
+        while (count > 0) {
+            packet.blocks.push(NavigatorSearchResultBlockParser(wrapper));
+
+            count--;
+        }
+
+        return packet;
+    }
 }

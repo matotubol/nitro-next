@@ -116,3 +116,19 @@
 @utility text-style-frame-title {
     @apply font-goldfish-bold text-[9px] text-white;
 }
+
+@utility text-style-u-small {
+    @apply font-ubuntu text-[10px];
+}
+
+@utility text-style-u-headline-small {
+    @apply font-ubuntu-bold text-[14px];
+}
+
+@utility text-style-u-headline-medium {
+    @apply font-ubuntu-bold text-[16px];
+}
+
+@utility text-style-id-heading-2 {
+    @apply font-ubuntu-bold text-[12px] text-white;
+}

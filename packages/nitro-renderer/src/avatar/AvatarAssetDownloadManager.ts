@@ -8,6 +8,18 @@ type PendingAvatarLibraryDownload = {
     resolve: () => void;
 };
 
+/**
+ * `figure` is the string the caller handed us, which is not always what
+ * `container.getFigureString()` produces: `validateAvatarFigure` may inject
+ * missing mandatory parts. Listeners compare the figure they get back against
+ * the one they hold, so they have to be told their own spelling of it.
+ */
+type PendingAvatarFigure = {
+    container: IAvatarFigureContainer;
+    listener: IAvatarImageListener;
+    figure: string;
+};
+
 export class AvatarAssetDownloadManager {
     private static MANDATORY_LIBRARIES: string[] = ['hh_human_body', 'hh_human_item'];
     private static MAX_CONCURRENT_DOWNLOADS: number = 6;
@@ -15,8 +27,8 @@ export class AvatarAssetDownloadManager {
     private _structure: AvatarStructure;
     private _figureMap: Map<string, AvatarAssetDownloadLibrary[]> = new Map();
     private _librariesByName: Map<string, AvatarAssetDownloadLibrary> = new Map();
-    private _pendingContainers: [IAvatarFigureContainer, IAvatarImageListener][] = [];
-    private _figureListeners: Map<string, IAvatarImageListener[]> = new Map();
+    private _pendingContainers: PendingAvatarFigure[] = [];
+    private _figureListeners: Map<string, PendingAvatarFigure[]> = new Map();
     private _incompleteFigures: Map<string, AvatarAssetDownloadLibrary[]> = new Map();
     private _pendingDownloadQueue: PendingAvatarLibraryDownload[] = [];
     private _currentDownloads: Set<AvatarAssetDownloadLibrary> = new Set();
@@ -43,7 +55,7 @@ export class AvatarAssetDownloadManager {
             let downloadLibrary = this._librariesByName.get(library.id);
 
             if (!downloadLibrary) {
-                downloadLibrary = new AvatarAssetDownloadLibrary(library.id, library.revision ?? 0, assetUrl, lib => this.onLibraryLoaded(lib));
+                downloadLibrary = new AvatarAssetDownloadLibrary(library.id, library.revision ?? 0, assetUrl, lib => this.onLibrarySettled(lib));
                 this._librariesByName.set(library.id, downloadLibrary);
 
                 if (downloadLibrary.isLoaded) this._onAssetLibraryLoaded?.(downloadLibrary.libraryName);
@@ -76,41 +88,46 @@ export class AvatarAssetDownloadManager {
     }
 
     public processPendingContainers(): void {
-        for (const [container, listener] of this._pendingContainers) this.downloadAvatarFigure(container, listener);
+        const pending = this._pendingContainers;
 
         this._pendingContainers = [];
+
+        for (const { container, listener, figure } of pending) this.downloadAvatarFigure(container, listener, figure);
     }
 
     public isAvatarFigureContainerReady(container: IAvatarFigureContainer): boolean {
         return this._isReady && !this.getAvatarFigurePendingLibraries(container).length;
     }
 
-    public downloadAvatarFigure(container: IAvatarFigureContainer, listener: IAvatarImageListener): void {
+    public downloadAvatarFigure(container: IAvatarFigureContainer, listener: IAvatarImageListener, figure: string = container.getFigureString()): void {
         if (!this._isReady) {
-            this._pendingContainers.push([container, listener]);
+            this._pendingContainers.push({ container, listener, figure });
 
             return;
         }
 
-        const figure = container.getFigureString();
+        const key = container.getFigureString();
         const libraries = this.getAvatarFigurePendingLibraries(container);
 
-        if (libraries.length) {
-            let listeners = this._figureListeners.get(figure);
+        if (!libraries.length) {
+            listener.resetFigure(figure);
 
-            if (!listeners) {
-                listeners = [];
-
-                this._figureListeners.set(figure, listeners);
-            }
-
-            if (!listeners.includes(listener)) listeners.push(listener);
-
-            this._incompleteFigures.set(figure, libraries);
-
-            for (const library of libraries) this.downloadLibrary(library);
+            return;
         }
-        else listener.resetFigure(figure);
+
+        let listeners = this._figureListeners.get(key);
+
+        if (!listeners) {
+            listeners = [];
+
+            this._figureListeners.set(key, listeners);
+        }
+
+        if (!listeners.some(entry => entry.listener === listener)) listeners.push({ container, listener, figure });
+
+        this._incompleteFigures.set(key, libraries);
+
+        for (const library of libraries) this.downloadLibrary(library);
     }
 
     public async downloadAvatarFigureAsync(container: IAvatarFigureContainer): Promise<void> {
@@ -155,7 +172,10 @@ export class AvatarAssetDownloadManager {
             if (!figurePartSet) continue;
 
             for (const library of this.getFigurePartSetLibraries(figurePartSet.parts.map(part => `${part.type}:${part.id}`))) {
-                if (!library.isLoaded && !pendingLibraries.includes(library)) pendingLibraries.push(library);
+                // A library whose download already failed is treated as settled, not
+                // pending. Reporting it as pending forever would keep the figure on the
+                // placeholder image and re-trigger a download on every avatar creation.
+                if (!library.isLoaded && !library.isFailed && !pendingLibraries.includes(library)) pendingLibraries.push(library);
             }
         }
 
@@ -168,6 +188,11 @@ export class AvatarAssetDownloadManager {
      * claim generic parts such as bd:1 and hd:1 while containing only their unique
      * overlay. Prefer the canonical core owner for core parts, and only fan out
      * to custom libraries for non-core part ids.
+     *
+     * TODO: the `_50_` libraries hold the `sh_*` sprites used by AvatarScaleType.Small.
+     * They are excluded here because the converted bundles are currently empty; small
+     * avatars render through AvatarScaleType.LargeScaledSmall instead. Drop this filter
+     * (and make selection scale-aware) once the small bundles are rebuilt.
      */
     private getFigurePartSetLibraries(partKeys: string[]): AvatarAssetDownloadLibrary[] {
         const selected: AvatarAssetDownloadLibrary[] = [];
@@ -233,42 +258,34 @@ export class AvatarAssetDownloadManager {
         return promise;
     }
 
-    private onLibraryLoaded(library: IAvatarAssetDownloadLibrary): void {
-        if (!library) return;
+    /** Fires once a library download finishes, whether it succeeded or failed. */
+    private onLibrarySettled(settled: IAvatarAssetDownloadLibrary): void {
+        if (!settled) return;
 
-        const loadedFigures: string[] = [];
+        const settledFigures: string[] = [];
 
         // The SWF registers a library's aliases before it wakes figure listeners.
         // Without this, the library remains marked as loaded but aliased clothing
         // frames cannot be resolved when that figure is created again.
-        this._onAssetLibraryLoaded?.(library.libraryName);
+        if (settled.isLoaded) this._onAssetLibraryLoaded?.(settled.libraryName);
 
         for (const [figure, libraries] of this._incompleteFigures.entries()) {
-            let isReady = true;
+            // A failed library will never load, so waiting on it would strand the
+            // figure. Wake the listeners and let the avatar render what it has.
+            if (libraries.some(library => library && !library.isLoaded && !library.isFailed)) continue;
 
-            for (const library of libraries) {
-                if (!library || library.isLoaded) continue;
-
-                isReady = false;
-
-                break;
-            }
-
-            if (!isReady) continue;
-
-            loadedFigures.push(figure);
+            settledFigures.push(figure);
 
             const listeners = this._figureListeners.get(figure);
 
             if (listeners) {
-                for (const listener of listeners) listener.resetFigure(figure);
+                for (const entry of listeners) entry.listener.resetFigure(entry.figure);
             }
 
             this._figureListeners.delete(figure);
         }
 
-        for (const figure of loadedFigures) this._incompleteFigures.delete(figure);
-
+        for (const figure of settledFigures) this._incompleteFigures.delete(figure);
     }
 
     public get isReady(): boolean {

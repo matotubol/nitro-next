@@ -1,5 +1,6 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 
+import { BitmapText, type BitmapTextRecipe } from './bitmap-text';
 import { cn, cva, useCascadedVariant, useTintedVars, VariantCascadeProvider, type VariantProps } from './utils';
 import { VARIANT_CASCADE_CONFIG } from './VariantConfig';
 
@@ -64,10 +65,12 @@ interface ButtonThickProps extends ButtonHTMLAttributes<HTMLButtonElement>, Butt
     className?: string;
     tintColor?: string;
     defaultVariant?: string;
+    textRecipe?: BitmapTextRecipe;
+    textColor?: string;
 }
 
 export const ButtonThick = forwardRef<HTMLButtonElement, ButtonThickProps>(
-    ({ className, variant, defaultVariant, tintColor, style, children, ...props }, ref) => {
+    ({ className, variant, defaultVariant, tintColor, textRecipe, textColor = '#ffffff', style, children, ...props }, ref) => {
         const cascadedVariant = useCascadedVariant('buttonThick');
         const resolvedVariant = (variant ?? cascadedVariant ?? defaultVariant ?? '0') as never;
         const ownCascade = VARIANT_CASCADE_CONFIG['buttonThick']?.[resolvedVariant];
@@ -83,7 +86,17 @@ export const ButtonThick = forwardRef<HTMLButtonElement, ButtonThickProps>(
                 {...props}
             >
                 {overlayClassName && <div aria-hidden className={cn('pointer-events-none absolute inset-0', overlayClassName)} />}
-                <VariantCascadeProvider map={ownCascade}>{children}</VariantCascadeProvider>
+                <VariantCascadeProvider map={ownCascade}>
+                    {textRecipe && (typeof children === 'string' || typeof children === 'number') ? (
+                        <BitmapText
+                            recipe={textRecipe}
+                            color={textColor}
+                            align="center"
+                            className="relative block h-[18px] w-full">
+                            {children}
+                        </BitmapText>
+                    ) : children}
+                </VariantCascadeProvider>
             </button>
         );
     }

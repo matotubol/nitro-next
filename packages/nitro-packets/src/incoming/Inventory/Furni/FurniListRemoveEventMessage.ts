@@ -1,20 +1,15 @@
-import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
-
-// TODO(ItemId: RoomObjectId): Unknown type 'RoomObjectId'. Add override mapping.
+import type { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
 export type FurniListRemoveEventMessageType = {
-  itemId: any;
+    itemId: number;
 };
 
-export class FurniListRemoveEventMessage implements IIncomingPacket<FurniListRemoveEventMessageType>
-{
-  public parse(wrapper: IMessageDataWrapper): FurniListRemoveEventMessageType
-  {
+export class FurniListRemoveEventMessage implements IIncomingPacket<FurniListRemoveEventMessageType> {
+    public parse(wrapper: IMessageDataWrapper): FurniListRemoveEventMessageType {
+        const packet: FurniListRemoveEventMessageType = {
+            itemId: wrapper.readInt()
+        };
 
-    const packet: FurniListRemoveEventMessageType = {
-      itemId: undefined as any, // Unknown type 'RoomObjectId'. Add override mapping.
-    };
-
-    return packet;
-  }
+        return packet;
+    }
 }

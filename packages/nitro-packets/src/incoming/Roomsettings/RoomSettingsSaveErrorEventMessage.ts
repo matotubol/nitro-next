@@ -1,8 +1,9 @@
 import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
 export type RoomSettingsSaveErrorEventMessageType = {
-  // no fields
-
+  roomId: number;
+  errorCode: number;
+  info: string;
 };
 
 export class RoomSettingsSaveErrorEventMessage implements IIncomingPacket<RoomSettingsSaveErrorEventMessageType>
@@ -11,6 +12,9 @@ export class RoomSettingsSaveErrorEventMessage implements IIncomingPacket<RoomSe
   {
 
     const packet: RoomSettingsSaveErrorEventMessageType = {
+      roomId: wrapper.readInt(),
+      errorCode: wrapper.readInt(),
+      info: wrapper.readString(),
     };
 
     return packet;

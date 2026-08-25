@@ -9,15 +9,15 @@ export class EffectAssetDownloadLibrary implements IEffectAssetDownloadLibrary {
     private _revision: number;
     private _assetUrl: string;
     private _animations: IAssetAnimation[];
-    private _onDownloaded: (library: IEffectAssetDownloadLibrary) => void;
+    private _onSettled: (library: IEffectAssetDownloadLibrary) => void;
     private _downloadPromise: Promise<boolean> | undefined;
 
-    constructor(libraryName: string, revision: number, assetUrl: string, onDownloaded: (library: IEffectAssetDownloadLibrary) => void) {
+    constructor(libraryName: string, revision: number, assetUrl: string, onSettled: (library: IEffectAssetDownloadLibrary) => void) {
         this._libraryName = libraryName;
         this._revision = revision;
         this._assetUrl = assetUrl;
         this._animations = [];
-        this._onDownloaded = onDownloaded;
+        this._onSettled = onSettled;
 
         this._assetUrl = this._assetUrl.replace(/%libname%/gi, this._libraryName);
         this._assetUrl = this._assetUrl.replace(/%revision%/gi, this._revision.toString());
@@ -43,37 +43,35 @@ export class EffectAssetDownloadLibrary implements IEffectAssetDownloadLibrary {
         const promise = (async () => {
             let asset = GetAssetManager().getCollection(this._libraryName);
 
-            if (!asset && !(await GetAssetManager().downloadAsset(this._assetUrl))) {
-                this._state = AvatarAssetDownloadStatus.NotLoaded;
-
-                return false;
-            }
+            if (!asset && !(await GetAssetManager().downloadAsset(this._assetUrl))) return false;
 
             asset = GetAssetManager().getCollection(this._libraryName);
 
             if (!asset) {
-                this._state = AvatarAssetDownloadStatus.NotLoaded;
                 NitroLogger.error(`Effect library did not register a collection: ${this._libraryName}`);
 
                 return false;
             }
 
             this._state = AvatarAssetDownloadStatus.Loaded;
-
             this._animations = asset.data?.animations ?? [];
-
-            this._onDownloaded(this);
 
             return true;
         })()
             .catch(err => {
-                this._state = AvatarAssetDownloadStatus.NotLoaded;
                 NitroLogger.error(err);
 
                 return false;
             })
             .finally(() => {
                 this._downloadPromise = undefined;
+
+                // Settle on failure as well, otherwise every avatar waiting on this
+                // effect keeps its listener registered forever. See the matching
+                // comment in AvatarAssetDownloadLibrary.
+                if (this._state !== AvatarAssetDownloadStatus.Loaded) this._state = AvatarAssetDownloadStatus.Failed;
+
+                this._onSettled(this);
             });
 
         this._downloadPromise = promise;
@@ -91,5 +89,9 @@ export class EffectAssetDownloadLibrary implements IEffectAssetDownloadLibrary {
 
     public get isLoaded(): boolean {
         return (this._state === AvatarAssetDownloadStatus.Loaded);
+    }
+
+    public get isFailed(): boolean {
+        return (this._state === AvatarAssetDownloadStatus.Failed);
     }
 }

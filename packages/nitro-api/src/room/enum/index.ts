@@ -3,6 +3,7 @@ export * from './AvatarExpressionEnum';
 export * from './ContextMenuEnum';
 export * from './FriendFurniEngravingWidgetType';
 export * from './FurniturePickupMode';
+export * from './FurniturePlacementError';
 export * from './FurnitureUsagePolicyEnum';
 export * from './PostureTypeEnum';
 export * from './RoomControllerLevelEnum';

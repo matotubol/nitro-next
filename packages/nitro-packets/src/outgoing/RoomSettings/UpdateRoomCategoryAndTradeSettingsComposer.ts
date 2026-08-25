@@ -1,9 +1,9 @@
 import { IOutgoingPacket } from '@nitrodevco/nitro-api';
 
 export type UpdateRoomCategoryAndTradeSettingsComposerType = {
-    roomId: RoomId;
+    roomId: number;
     categoryId: number;
-    tradeType: RoomTradeModeType;
+    tradeType: number;
 };
 
 export class UpdateRoomCategoryAndTradeSettingsComposer implements IOutgoingPacket<UpdateRoomCategoryAndTradeSettingsComposerType> {

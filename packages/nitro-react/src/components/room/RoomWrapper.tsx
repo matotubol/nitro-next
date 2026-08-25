@@ -1,7 +1,7 @@
 import { OpenFlatConnectionComposer } from "@nitrodevco/nitro-packets";
 import { useEffect } from "react";
 
-import { RoomContextProvider, useWebSocketContext } from "#base/context";
+import { useWebSocketContext } from "#base/context";
 
 import { RoomContainer } from "./RoomContainer";
 import { RoomHandlers } from "./RoomHandlers";
@@ -21,9 +21,9 @@ export const RoomWrapper = () => {
     }, []);
 
     return (
-        <RoomContextProvider>
+        <>
             <RoomHandlers />
             <RoomContainer />
-        </RoomContextProvider>
+        </>
     );
 }

@@ -24,7 +24,18 @@ export class AvatarFigureContainer implements IAvatarFigureContainer {
     }
 
     public updatePart(type: AvatarFigurePartType, setId: number, colorIds: number[]): void {
-        this._parts.delete(type);
+        const existing = this._parts.get(type);
+
+        // Update in place. Deleting first would move the part to the end of the map
+        // and reorder getFigureString(), which callers compare against the figure
+        // string the server sent them.
+        if (existing) {
+            existing.setId = setId;
+            existing.colorIds = colorIds;
+
+            return;
+        }
+
         this._parts.set(type, {
             type,
             setId,
@@ -69,7 +80,12 @@ export class AvatarFigureContainer implements IAvatarFigureContainer {
                 let i = 2;
 
                 while (i < pieces.length) {
-                    colorIds.push(parseInt(pieces[i]));
+                    const colorId = parseInt(pieces[i]);
+
+                    // Colourless parts arrive with a trailing separator ("wa-2007-").
+                    // Pushing the resulting NaN would poison palette lookups and emit
+                    // "wa-2007-NaN" from getFigureString().
+                    if (!isNaN(colorId)) colorIds.push(colorId);
 
                     i++;
                 }

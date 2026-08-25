@@ -1,7 +1,7 @@
 import { IOutgoingPacket } from '@nitrodevco/nitro-api';
 
 export type GetGuestRoomComposerType = {
-    roomId: RoomId;
+    roomId: number;
     enterRoom: boolean;
     roomForward: boolean;
 };

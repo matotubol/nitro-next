@@ -60,6 +60,11 @@ export default defineConfig({
     resolve: {
         tsconfigPaths: true,
         dedupe: ['pixi.js'],
+        // The sibling packages carry stale compiled `.js` next to their `.ts` sources
+        // in `src/`. Vite's default order resolves an extensionless `./Foo` to `Foo.js`
+        // before `Foo.ts`, so those artifacts silently shadow every edit to the real
+        // source. Put TypeScript first; `.js` still resolves where there is no `.ts`.
+        extensions: ['.mts', '.ts', '.tsx', '.mjs', '.js', '.jsx', '.json'],
         alias: [
             { find: /^#base\/(.*)/, replacement: r('src/$1') },
             { find: /^#themes\/(.*)/, replacement: r('themes/$1') },

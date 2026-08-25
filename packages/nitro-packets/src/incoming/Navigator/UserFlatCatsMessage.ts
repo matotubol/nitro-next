@@ -1,20 +1,27 @@
-import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
+import type { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
-// TODO(Nodes: List<object>?): List<T> requires custom read loop (length + items).
+import type { INavigatorFlatCategory } from './Data/NavigatorCategoryParser';
+import { NavigatorFlatCategoryParser } from './Data/NavigatorCategoryParser';
 
 export type UserFlatCatsMessageType = {
-  nodes: any[];
+    nodes: INavigatorFlatCategory[];
 };
 
-export class UserFlatCatsMessage implements IIncomingPacket<UserFlatCatsMessageType>
-{
-  public parse(wrapper: IMessageDataWrapper): UserFlatCatsMessageType
-  {
+export class UserFlatCatsMessage implements IIncomingPacket<UserFlatCatsMessageType> {
+    public parse(wrapper: IMessageDataWrapper): UserFlatCatsMessageType {
+        const nodes: INavigatorFlatCategory[] = [];
 
-    const packet: UserFlatCatsMessageType = {
-      nodes: undefined as any, // List<T> requires custom read loop (length + items).
-    };
+        // the server may answer with an empty body while no categories are configured
+        if (!wrapper.bytesAvailable) return { nodes };
 
-    return packet;
-  }
+        let count = wrapper.readInt();
+
+        while (count > 0) {
+            nodes.push(NavigatorFlatCategoryParser(wrapper));
+
+            count--;
+        }
+
+        return { nodes };
+    }
 }

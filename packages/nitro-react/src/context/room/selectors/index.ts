@@ -13,5 +13,6 @@ export * from './session/useRoomIsPlayingGame';
 export * from './session/useRoomPermissionsSelector';
 export * from './session/useRoomSettingsSelector';
 export * from './useRoomCameraSelector';
+export * from './useRoomDecorationSelector';
 export * from './useRoomIsLandingViewVisible';
 export * from './useRoomSelector';

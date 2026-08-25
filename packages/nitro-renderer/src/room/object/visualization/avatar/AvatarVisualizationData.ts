@@ -34,9 +34,14 @@ export class AvatarVisualizationData implements IObjectVisualizationData {
                 effectListener,
             );
 
+        // TODO: render zoomed-out avatars from the native `sh_*` sprites again once the
+        // `hh_human_50_*` bundles are rebuilt — the converted ones are currently empty,
+        // so AvatarScaleType.Small resolves no assets at all and draws nothing. Until
+        // then LargeScaledSmall produces the same 32px output by downsampling the large
+        // sprites. See getFigurePartSetLibraries in AvatarAssetDownloadManager.
         return GetAvatarRenderManager().createAvatarImage(
             figure,
-            AvatarScaleType.Small,
+            AvatarScaleType.LargeScaledSmall,
             gender,
             avatarListener,
             effectListener,

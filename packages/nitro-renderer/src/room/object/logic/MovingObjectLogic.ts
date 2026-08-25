@@ -66,6 +66,11 @@ export class MovingObjectLogic extends RoomObjectLogicBase {
             this.object.setLocation(vector);
 
             if (difference === this._updateInterval) {
+                // Commit the finished slide into _location: later offset-only renders (e.g. the
+                // rotate bounce) draw from it, and an uncommitted slide made them flash the object
+                // back to the tile the slide started from.
+                this._location.add(this._locationDelta);
+
                 this._locationDelta.x = 0;
                 this._locationDelta.y = 0;
                 this._locationDelta.z = 0;
@@ -82,7 +87,17 @@ export class MovingObjectLogic extends RoomObjectLogicBase {
 
         super.processUpdateMessage(message);
 
-        if (message.location) this._location.assign(message.location);
+        if (message.location) {
+            this._location.assign(message.location);
+
+            // An absolute position cancels an in-flight slide: interpolating the leftover delta
+            // from the new base slides the object one extra tile past where the server put it.
+            if (!(message instanceof ObjectMoveUpdateMessage)) {
+                this._locationDelta.x = 0;
+                this._locationDelta.y = 0;
+                this._locationDelta.z = 0;
+            }
+        }
 
         if (message instanceof ObjectMoveUpdateMessage) {
             if (message.skipPositionUpdate) return;

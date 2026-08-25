@@ -1,12 +1,15 @@
 import { IOutgoingPacket } from '@nitrodevco/nitro-api';
 
-export type SaveWardrobeOutfitComposerType = object;
+export type SaveWardrobeOutfitComposerType = {
+    slotId: number;
+    figure: string;
+    gender: string;
+};
 
 export class SaveWardrobeOutfitComposer implements IOutgoingPacket<SaveWardrobeOutfitComposerType> {
-    public constructor(private params: SaveWardrobeOutfitComposerType) { }
+    public constructor(private params: SaveWardrobeOutfitComposerType) {}
 
     public compose(): (number | string | boolean)[] {
-        return [
-        ];
+        return [this.params.slotId, this.params.figure, this.params.gender];
     }
 }

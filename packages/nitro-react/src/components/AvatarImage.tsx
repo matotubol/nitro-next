@@ -9,7 +9,12 @@ type AvatarImageProps = {
     headOnly?: boolean;
     direction?: number;
     scale?: number;
-    crop?: 'avatar' | 'face';
+    /**
+     * 'avatar' crops to the figure's visible bounds, so the image size changes with the
+     * figure (taller hair -> taller image). 'imager' renders into the fixed Habbo imager
+     * viewport instead, so every figure comes back the same size and stays put.
+     */
+    crop?: 'avatar' | 'face' | 'imager';
     offsetY?: number;
 };
 
@@ -22,7 +27,7 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
             direction = 0,
             scale = 1,
             crop = 'avatar',
-            offsetY = crop === 'face' ? 0 : -8,
+            offsetY = crop === 'avatar' ? -8 : 0,
         } = props;
         const [renderVersion, setRenderVersion] = useState<number>(0);
         const [imageData, setImageData] = useState<{
@@ -31,9 +36,14 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
             url: string;
         }>({ width: 0, height: 0, url: '' });
         useEffect(() => {
-            setImageData({ width: 0, height: 0, url: '' });
+            // Hold the last frame until the next one is ready. Blanking here collapses the
+            // element to 0x0, so any parent that centres on it snaps the avatar to a new
+            // position and back every time the figure changes.
+            if (!figure) {
+                setImageData({ width: 0, height: 0, url: '' });
 
-            if (!figure) return;
+                return;
+            }
 
             let cancelled = false;
             let avatarDisposed = false;
@@ -78,9 +88,10 @@ export const AvatarImage = forwardRef<HTMLDivElement, AvatarImageProps>(
                 try {
                     let image;
 
-                    if (crop === 'face') {
+                    if (crop === 'face' || crop === 'imager') {
                         image = await AvatarImageView.renderImage(avatarImage, {
-                            type: 'face',
+                            type: crop,
+                            setType,
                             scale,
                         });
                     } else {

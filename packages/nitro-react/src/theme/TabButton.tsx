@@ -64,7 +64,8 @@ export const TabButton = forwardRef<HTMLDivElement, TabButtonProps>(
                             recipe={textRecipe}
                             color={textColor}
                             align="center"
-                            className="relative block h-[18px] w-full">
+                            autoWidth
+                            className="relative block h-[18px] shrink-0">
                             {children}
                         </BitmapText>
                     ) : children}

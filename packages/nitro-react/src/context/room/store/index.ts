@@ -1,4 +1,5 @@
 export * from './RoomCameraSlice';
+export * from './RoomDecorationSlice';
 export * from './RoomMouseSlice';
 export * from './RoomSelectedObjectSlice';
 export * from './RoomSessionSlice';

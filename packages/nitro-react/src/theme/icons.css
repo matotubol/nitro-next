@@ -541,14 +541,14 @@
 
 .icon-nav-plus {
     background: url('/assets/flash/navigator/plus.png');
-    width: 9px;
-    height: 9px;
+    width: 11px;
+    height: 11px;
 }
 
 .icon-nav-minus {
     background: url('/assets/flash/navigator/minus.png');
-    width: 9px;
-    height: 9px;
+    width: 18px;
+    height: 18px;
 }
 
 .icon-nav-inline {
@@ -561,6 +561,108 @@
     background: url('/assets/flash/navigator/thumbnail_view.png');
     width: 11px;
     height: 11px;
+}
+
+.icon-nav-mini {
+    background: url('/assets/flash/navigator/mini_view.png');
+    width: 11px;
+    height: 11px;
+}
+
+.icon-nav-show-more {
+    background: url('/assets/flash/navigator/show_more.png');
+    width: 18px;
+    height: 18px;
+}
+
+.icon-nav-refresh {
+    background: url('/assets/flash/navigator/refresh.png');
+    width: 17px;
+    height: 12px;
+}
+
+.icon-nav-quicklink-remove {
+    background: url('/assets/flash/navigator/saves-search/search_remove.png');
+    width: 10px;
+    height: 10px;
+}
+
+.icon-navigator-usercount {
+    background: url('/assets/flash/navigator/usercount.png');
+    width: 18px;
+    height: 18px;
+}
+
+.icon-nav-favourite-on {
+    background: url('/assets/flash/navigator/icons/favourite_on.png');
+    width: 13px;
+    height: 12px;
+}
+
+.icon-nav-favourite-off {
+    background: url('/assets/flash/navigator/icons/favourite_off.png');
+    width: 13px;
+    height: 12px;
+}
+
+.icon-nav-home-on {
+    background: url('/assets/flash/navigator/icons/home_on.png');
+    width: 13px;
+    height: 12px;
+}
+
+.icon-nav-home-off {
+    background: url('/assets/flash/navigator/icons/home_off.png');
+    width: 13px;
+    height: 12px;
+}
+
+.icon-nav-room-settings {
+    background: url('/assets/flash/navigator/icons/room_settings.png');
+    width: 13px;
+    height: 14px;
+}
+
+.icon-nav-report-room {
+    background: url('/assets/flash/navigator/icons/report_room.png');
+    width: 17px;
+    height: 16px;
+}
+
+.icon-nav-owner {
+    background: url('/assets/flash/navigator/icons/owner_eye.png');
+    width: 21px;
+    height: 21px;
+}
+
+.icon-nav-group-owner {
+    background: url('/assets/flash/navigator/icons/group_owner.png');
+    width: 15px;
+    height: 13px;
+}
+
+.icon-nav-group-admin {
+    background: url('/assets/flash/navigator/icons/group_admin.png');
+    width: 15px;
+    height: 13px;
+}
+
+.icon-nav-small-pen {
+    background: url('/assets/flash/navigator/icons/small_pen.png');
+    width: 17px;
+    height: 18px;
+}
+
+.icon-nav-event {
+    background: url('/assets/flash/navigator/event_icon.png');
+    width: 38px;
+    height: 38px;
+}
+
+.icon-nav-close {
+    background: url('/assets/flash/navigator/icons/close.png');
+    width: 11px;
+    height: 12px;
 }
 
 .icon-pf-online {

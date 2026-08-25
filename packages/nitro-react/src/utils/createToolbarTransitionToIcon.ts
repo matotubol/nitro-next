@@ -1,5 +1,41 @@
 export type ToolbarTransitionTarget = 'inventory' | 'me-menu';
 
+/**
+ * Either a DOM image already on screen - the catalog's product thumbnail - or a
+ * bare screen point, for callers whose source is drawn on the room canvas and so
+ * has no element to measure. `animateToIcon` builds its transition window at
+ * `Rectangle(x, y, bitmap.width, bitmap.height)`, so a point source keeps the
+ * icon at its natural size rather than stretching it to fill anything.
+ */
+export type ToolbarTransitionPoint = { url: string; x: number; y: number };
+
+export type ToolbarTransitionSource = HTMLImageElement | ToolbarTransitionPoint;
+
+type ResolvedSource = {
+    url: string;
+    top: number;
+    left: number;
+    width?: number;
+    height?: number;
+};
+
+const resolveSource = (source: ToolbarTransitionSource | null | undefined): ResolvedSource | undefined => {
+    if (!source) return undefined;
+
+    if (source instanceof HTMLImageElement) {
+        const url = source.currentSrc || source.src;
+        const rect = source.getBoundingClientRect();
+
+        if (!url || !rect.width || !rect.height) return undefined;
+
+        return { url, top: rect.top, left: rect.left, width: rect.width, height: rect.height };
+    }
+
+    if (!source.url) return undefined;
+
+    return { url: source.url, top: source.y, left: source.x };
+};
+
 const TARGET_SELECTORS: Record<ToolbarTransitionTarget, string> = {
     inventory: '[data-toolbar-transition-target="inventory"]',
     'me-menu': '[data-toolbar-transition-target="me-menu"]',
@@ -33,39 +69,37 @@ const bounceToolbarTarget = (target: Element) => {
 
 export const createToolbarTransitionToIcon = (
     targetName: ToolbarTransitionTarget,
-    source: HTMLImageElement | null,
+    source: ToolbarTransitionSource | null | undefined,
 ) => {
-    if (typeof document === 'undefined' || !source) return;
+    if (typeof document === 'undefined') return;
 
+    const resolved = resolveSource(source);
     const target = document.querySelector(TARGET_SELECTORS[targetName]);
-    const sourceUrl = source.currentSrc || source.src;
 
-    if (!target || !sourceUrl) return;
+    if (!target || !resolved) return;
 
-    const sourceRect = source.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
 
-    if (!sourceRect.width || !sourceRect.height) return;
-
     const transitionImage = document.createElement('img');
-    const deltaX = targetRect.left + 20 - sourceRect.left;
-    const deltaY = targetRect.top - sourceRect.top;
+    // `animateToIcon`: the landing point is nudged 20px into the icon
+    const deltaX = targetRect.left + 20 - resolved.left;
+    const deltaY = targetRect.top - resolved.top;
     const distance = Math.hypot(deltaX, deltaY);
     const duration = Math.max(
         250,
         Math.min(500, 500 - Math.abs((1 / Math.max(distance, 1)) * 25_000)),
     );
 
-    transitionImage.src = sourceUrl;
+    transitionImage.src = resolved.url;
     transitionImage.alt = '';
     transitionImage.setAttribute('aria-hidden', 'true');
     Object.assign(transitionImage.style, {
         position: 'fixed',
         zIndex: '1100',
-        top: `${sourceRect.top}px`,
-        left: `${sourceRect.left}px`,
-        width: `${sourceRect.width}px`,
-        height: `${sourceRect.height}px`,
+        top: `${resolved.top}px`,
+        left: `${resolved.left}px`,
+        ...(resolved.width !== undefined && { width: `${resolved.width}px` }),
+        ...(resolved.height !== undefined && { height: `${resolved.height}px` }),
         pointerEvents: 'none',
         imageRendering: 'pixelated',
         filter: [

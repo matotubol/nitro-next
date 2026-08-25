@@ -53,6 +53,8 @@ export class AvatarRenderManager implements IAvatarRenderManager {
         this._structure.initFigureData(HabboAvatarFigureDataDefault);
         this._aliasCollection.init();
         this._initialized = true;
+
+        this.updateReadyState();
     }
 
     public processFigureMap(data: IFigureMapLibrary[], assetUrl: string) {
@@ -90,7 +92,10 @@ export class AvatarRenderManager implements IAvatarRenderManager {
 
         if (!this._placeHolderFigure) this._placeHolderFigure = new AvatarFigureContainer(AvatarRenderManager.DEFAULT_FIGURE);
 
-        this._avatarAssetDownloadManager.downloadAvatarFigure(container, listener);
+        // Pass the caller's figure string through: validateAvatarFigure may have
+        // injected mandatory parts above, and the listener compares what it gets
+        // back against the figure it already holds.
+        this._avatarAssetDownloadManager.downloadAvatarFigure(container, listener, figure);
 
         return new PlaceHolderAvatarImage(this._structure, this._aliasCollection, this._placeHolderFigure, size, this._effectAssetDownloadManager);
     }
@@ -105,8 +110,8 @@ export class AvatarRenderManager implements IAvatarRenderManager {
         return new AvatarImage(this._structure, this._aliasCollection, container, size, this._effectAssetDownloadManager, undefined);
     }
 
-    public downloadAvatarFigure(container: IAvatarFigureContainer, listener: IAvatarImageListener): void {
-        this._avatarAssetDownloadManager.downloadAvatarFigure(container, listener);
+    public downloadAvatarFigure(container: IAvatarFigureContainer, listener: IAvatarImageListener, figure?: string): void {
+        this._avatarAssetDownloadManager.downloadAvatarFigure(container, listener, figure ?? container.getFigureString());
     }
 
     public async downloadAvatarFigureAsync(container: IAvatarFigureContainer): Promise<void> {

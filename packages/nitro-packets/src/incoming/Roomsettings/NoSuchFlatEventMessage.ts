@@ -1,8 +1,7 @@
 import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
 export type NoSuchFlatEventMessageType = {
-  // no fields
-
+  roomId: number;
 };
 
 export class NoSuchFlatEventMessage implements IIncomingPacket<NoSuchFlatEventMessageType>
@@ -11,6 +10,7 @@ export class NoSuchFlatEventMessage implements IIncomingPacket<NoSuchFlatEventMe
   {
 
     const packet: NoSuchFlatEventMessageType = {
+      roomId: wrapper.readInt(),
     };
 
     return packet;

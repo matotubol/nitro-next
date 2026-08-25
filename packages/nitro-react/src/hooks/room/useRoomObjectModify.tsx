@@ -1,27 +1,21 @@
-import type { IRoomObject } from "@nitrodevco/nitro-api";
-import { NitroLogger, RoomControllerLevelEnum, RoomObjectCategoryEnum, RoomObjectOperationType, RoomObjectUserTypeName, RoomObjectVariableEnum, Vector3d } from "@nitrodevco/nitro-api";
+import { NitroLogger, RoomObjectCategoryEnum, RoomObjectOperationType, RoomObjectUserTypeName, RoomObjectVariableEnum, Vector3d } from "@nitrodevco/nitro-api";
 import { MoveObjectComposer, MoveWallItemComposer, PickupObjectComposer } from "@nitrodevco/nitro-packets";
 import { SelectedRoomObjectData } from "@nitrodevco/nitro-renderer";
 
-import { useOwnIsModerator, useOwnUserId, useRoomPermissionsSelector, useRoomSelectedObject, useRoomSelectedObjectActions, useRoomSelector, useWebSocketContext } from "#base/context";
+import { useRoomSelectedObject, useRoomSelectedObjectActions, useRoomSelector, useWebSocketContext } from "#base/context";
 
+import { useRoomFurniturePermissions } from "./useRoomFurniturePermissions";
 import { useRoomObjectSelect } from "./useRoomObjectSelect";
 import { useRoomObjectValidation } from "./useRoomObjectValidation";
 
 export const useRoomObjectModify = () => {
     const room = useRoomSelector();
-    const ownUserId = useOwnUserId();
-    const isModerator = useOwnIsModerator();
     const selectedObject = useRoomSelectedObject();
-    const { controllerLevel, isRoomOwner } = useRoomPermissionsSelector();
+    const { canManipulateFurniture } = useRoomFurniturePermissions();
     const { setSelectedObject } = useRoomSelectedObjectActions();
     const { resetSelectedObject } = useRoomObjectSelect();
     const { setFurnitureAlphaMultiplier, isValidLocation, getValidRoomObjectDirection } = useRoomObjectValidation();
     const { send } = useWebSocketContext();
-
-    const isFurnitureOwner = (object: IRoomObject | undefined) => object && (ownUserId === object.model.getValue<number>(RoomObjectVariableEnum.FurnitureOwnerId));
-
-    const canManipulateFurniture = (objectId: number, category: RoomObjectCategoryEnum) => room && (isRoomOwner || isModerator || (controllerLevel >= RoomControllerLevelEnum.Guest) || isFurnitureOwner(room.getRoomObject(objectId, category)));
 
     const modifyRoomObject = (objectId: number, category: RoomObjectCategoryEnum, operation: RoomObjectOperationType) => {
         if (!room) return false;
@@ -57,7 +51,9 @@ export const useRoomObjectModify = () => {
             }
             case RoomObjectOperationType.OBJECT_EJECT:
             case RoomObjectOperationType.OBJECT_PICKUP:
-                send(new PickupObjectComposer({ categoryId: category, objectId, confirm: true }));
+                // the reference client leaves `confirm` at its default here - it is
+                // only set when the player has already answered a confirmation
+                send(new PickupObjectComposer({ category, objectId, confirm: false }));
                 break;
             case RoomObjectOperationType.OBJECT_PICKUP_PET: {
                 /* const session = GetRoomSessionManager().getSession(roomId);

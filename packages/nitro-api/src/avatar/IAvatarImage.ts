@@ -9,6 +9,7 @@ import { IActiveActionData } from './actions';
 
 export interface IAvatarImage {
     dispose(): void;
+    updateFigure(figure: IAvatarFigureContainer | string): boolean;
     setDirection(setType: AvatarSetType, direction: number): void;
     setDirectionAngle(setType: AvatarSetType, angle: number): void;
     getLayerData(sprite: ISpriteDataContainer): IAnimationLayerData | undefined;

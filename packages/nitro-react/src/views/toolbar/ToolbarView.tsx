@@ -16,24 +16,49 @@ export const ToolbarView = () => {
     const ownGender = useOwnUserGender();
     const meElementRef = useRef<HTMLDivElement>(null);
     const progressionElementRef = useRef<HTMLDivElement>(null);
-    const { toggleWindow } = useSystemActions();
+    const { showWindow, toggleWindow } = useSystemActions();
 
     const toggleMenu = (menu: string) => {
         setMeExpanded(menu == 'me' && !isMeExpanded);
         setProgressionExpanded(menu == 'progression' && !isProgressionExpanded);
     };
 
+    const openMyClothes = () => {
+        setMeExpanded(false);
+        showWindow('avatar-editor');
+    };
+
     return (
         <>
-            {isMeExpanded && <ToolbarMeMenu ref={meElementRef} />}
-            {isProgressionExpanded && <ToolbarProgressionMenu ref={progressionElementRef} />}
+            {isMeExpanded && (
+                <ToolbarMeMenu ref={meElementRef} onOpenMyClothes={openMyClothes} />
+            )}
+            {isProgressionExpanded && (
+                <ToolbarProgressionMenu ref={progressionElementRef} />
+            )}
             <div className="nitro-toolbar">
                 <div className={cn('toolbar-left', leftSideCollapsed && 'collapsed')}>
-                    <div className={cn('toolbar-collapse', leftSideCollapsed && 'active')} onClick={_ => setLeftSideCollapsed(prev => !prev)} />
+                    <div
+                        className={cn(
+                            'toolbar-collapse',
+                            leftSideCollapsed && 'active',
+                        )}
+                        onClick={_ => setLeftSideCollapsed(prev => !prev)}
+                    />
                     <NitroIcon icon="icon-habbo" />
-                    <NitroIcon icon="icon-rooms" />
-                    <NitroIcon icon="icon-progression" onClick={_ => toggleMenu('progression')} />
-                    <NitroIcon icon="icon-catalog" onClick={() => toggleWindow('catalog')} />
+                    <NitroIcon
+                        icon="icon-rooms"
+                        data-toolbar-transition-target="navigator"
+                        onClick={() => toggleWindow('navigator')}
+                    />
+                    <NitroIcon
+                        icon="icon-progression"
+                        onClick={_ => toggleMenu('progression')}
+                    />
+                    <NitroIcon
+                        icon="icon-catalog"
+                        onClick={() => toggleWindow('catalog')}
+                    />
                     <NitroIcon icon="icon-builders-club" />
                     <NitroIcon
                         icon="icon-inventory"
@@ -45,15 +70,29 @@ export const ToolbarView = () => {
                         data-toolbar-transition-target="me-menu"
                         onClick={_ => toggleMenu('me')}
                     >
-                        <AvatarImage figure={ownFigure} gender={ownGender} direction={3} crop="face" />
+                        <AvatarImage
+                            figure={ownFigure}
+                            gender={ownGender}
+                            direction={3}
+                            crop="face"
+                        />
                     </div>
                     <NitroIcon icon="icon-wired" />
                     <NitroIcon icon="icon-camera" />
                 </div>
                 <div className="toolbar-right">
-                    <NitroIcon icon="icon-friendall" onClick={() => toggleWindow('friendlist')} />
+                    <NitroIcon
+                        icon="icon-friendall"
+                        onClick={() => toggleWindow('friendlist')}
+                    />
                     <NitroIcon icon="icon-friendsearch" />
-                    <div className={cn('toolbar-collapse', rightSideCollapsed && 'active')} onClick={_ => setRightSideCollapsed(!rightSideCollapsed)} />
+                    <div
+                        className={cn(
+                            'toolbar-collapse',
+                            rightSideCollapsed && 'active',
+                        )}
+                        onClick={_ => setRightSideCollapsed(!rightSideCollapsed)}
+                    />
                 </div>
             </div>
         </>

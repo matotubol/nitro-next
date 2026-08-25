@@ -1,20 +1,27 @@
-import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
+import type { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
-// TODO(EventCategories: List<object>?): List<T> requires custom read loop (length + items).
+import type { INavigatorEventCategory } from './Data/NavigatorCategoryParser';
+import { NavigatorEventCategoryParser } from './Data/NavigatorCategoryParser';
 
 export type UserEventCatsMessageType = {
-  eventCategories: any[];
+    eventCategories: INavigatorEventCategory[];
 };
 
-export class UserEventCatsMessage implements IIncomingPacket<UserEventCatsMessageType>
-{
-  public parse(wrapper: IMessageDataWrapper): UserEventCatsMessageType
-  {
+export class UserEventCatsMessage implements IIncomingPacket<UserEventCatsMessageType> {
+    public parse(wrapper: IMessageDataWrapper): UserEventCatsMessageType {
+        const eventCategories: INavigatorEventCategory[] = [];
 
-    const packet: UserEventCatsMessageType = {
-      eventCategories: undefined as any, // List<T> requires custom read loop (length + items).
-    };
+        // the server may answer with an empty body while no categories are configured
+        if (!wrapper.bytesAvailable) return { eventCategories };
 
-    return packet;
-  }
+        let count = wrapper.readInt();
+
+        while (count > 0) {
+            eventCategories.push(NavigatorEventCategoryParser(wrapper));
+
+            count--;
+        }
+
+        return { eventCategories };
+    }
 }

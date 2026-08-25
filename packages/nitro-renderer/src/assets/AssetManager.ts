@@ -12,6 +12,7 @@ export class AssetManager implements IAssetManager {
     private _collections: Map<string, IGraphicAssetCollection> = new Map();
     private _assets: Map<string, IGraphicAsset> = new Map();
     private _downloadPromises: Map<string, Promise<boolean>> = new Map();
+    private _missingAssets: Set<string> = new Set();
 
     public getTexture(name: string): Texture | undefined {
         return this._textures.get(name);
@@ -32,6 +33,12 @@ export class AssetManager implements IAssetManager {
 
         if (cached) return cached;
 
+        // Misses are the normal path, not an error: the avatar renderer probes up to
+        // four candidate names per body part and the avatar editor probes directions
+        // to find one that exists. Without this the scan below runs over every loaded
+        // collection on each probe. Cleared whenever a new collection lands.
+        if (this._missingAssets.has(name)) return undefined;
+
         for (const collection of this._collections.values()) {
             if (!collection) continue;
 
@@ -44,7 +51,7 @@ export class AssetManager implements IAssetManager {
             return existing;
         }
 
-        NitroLogger.warn(`AssetManager: Asset not found: ${name}`);
+        this._missingAssets.add(name);
 
         return undefined;
     }
@@ -57,7 +64,10 @@ export class AssetManager implements IAssetManager {
         const collection = this.getCollection(collectionName);
         const asset = collection?.addAsset(assetName, texture, 0, 0, false, false, false, true);
 
-        if (asset) this._assets.set(assetName, asset);
+        if (asset) {
+            this._assets.set(assetName, asset);
+            this._missingAssets.delete(assetName);
+        }
 
         return asset ?? undefined;
     }
@@ -85,6 +95,9 @@ export class AssetManager implements IAssetManager {
         }
 
         this._collections.set(collection.name, collection);
+
+        // Names that missed before may resolve against this collection.
+        this._missingAssets.clear();
 
         return collection;
     }
@@ -215,14 +228,14 @@ export class AssetManager implements IAssetManager {
 
             try {
                 if (name.endsWith('_spritesheet')) {
-                    const assetData = value as SpritesheetData;
+                    const spritesheetData = value as SpritesheetData;
 
-                    if (!assetData.meta?.image) continue;
+                    if (!spritesheetData.meta?.image) continue;
 
-                    const texture = bundle.textures[assetData.meta.image];
+                    const texture = bundle.textures[spritesheetData.meta.image];
 
                     if (texture) {
-                        spritesheet = new Spritesheet(bundle.textures[assetData.meta?.image], assetData);
+                        spritesheet = new Spritesheet(texture, spritesheetData);
 
                         await spritesheet.parse();
 

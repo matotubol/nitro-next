@@ -1,20 +1,21 @@
-import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
-
-// TODO(CollapsedCategoryIds: List<string>): List<T> requires custom read loop (length + items).
+import type { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
 export type NavigatorCollapsedCategoriesMessageType = {
-  collapsedCategoryIds: string[];
+    collapsedCategoryIds: string[];
 };
 
-export class NavigatorCollapsedCategoriesMessage implements IIncomingPacket<NavigatorCollapsedCategoriesMessageType>
-{
-  public parse(wrapper: IMessageDataWrapper): NavigatorCollapsedCategoriesMessageType
-  {
+export class NavigatorCollapsedCategoriesMessage implements IIncomingPacket<NavigatorCollapsedCategoriesMessageType> {
+    public parse(wrapper: IMessageDataWrapper): NavigatorCollapsedCategoriesMessageType {
+        const collapsedCategoryIds: string[] = [];
 
-    const packet: NavigatorCollapsedCategoriesMessageType = {
-      collapsedCategoryIds: undefined as any, // List<T> requires custom read loop (length + items).
-    };
+        let count = wrapper.readInt();
 
-    return packet;
-  }
+        while (count > 0) {
+            collapsedCategoryIds.push(wrapper.readString());
+
+            count--;
+        }
+
+        return { collapsedCategoryIds };
+    }
 }

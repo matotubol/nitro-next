@@ -20,6 +20,7 @@ export * from './enum/AvatarExpressionEnum';
 export * from './enum/ContextMenuEnum';
 export * from './enum/FriendFurniEngravingWidgetType';
 export * from './enum/FurniturePickupMode';
+export * from './enum/FurniturePlacementError';
 export * from './enum/FurnitureUsagePolicyEnum';
 export * from './enum/PostureTypeEnum';
 export * from './enum/RoomControllerLevelEnum';

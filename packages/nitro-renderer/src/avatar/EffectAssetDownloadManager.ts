@@ -13,7 +13,7 @@ export class EffectAssetDownloadManager {
     private static MAX_CONCURRENT_DOWNLOADS: number = 4;
 
     private _structure: AvatarStructure;
-    private _missingMandatoryLibs: string[] = EffectAssetDownloadManager.MANDATORY_LIBRARIES;
+    private _missingMandatoryLibs: string[] = EffectAssetDownloadManager.MANDATORY_LIBRARIES.slice();
     private _effectMap: Map<string, EffectAssetDownloadLibrary[]> = new Map();
     private _pendingDownloads: [number, IAvatarEffectListener][] = [];
     private _effectListeners: Map<number, IAvatarEffectListener[]> = new Map();
@@ -44,7 +44,7 @@ export class EffectAssetDownloadManager {
             let downloadLibrary = this._librariesByName.get(library.lib);
 
             if (!downloadLibrary) {
-                downloadLibrary = new EffectAssetDownloadLibrary(library.lib, library.revision ?? 0, assetUrl, lib => this.onLibraryLoaded(lib));
+                downloadLibrary = new EffectAssetDownloadLibrary(library.lib, library.revision ?? 0, assetUrl, lib => this.onLibrarySettled(lib));
                 this._librariesByName.set(library.lib, downloadLibrary);
 
                 if (downloadLibrary.isLoaded) this._onAssetLibraryLoaded?.(downloadLibrary.libraryName);
@@ -63,7 +63,7 @@ export class EffectAssetDownloadManager {
     }
 
     public processMissingLibraries(): void {
-        for (const lib of this._missingMandatoryLibs.slice()) {
+        for (const lib of this._missingMandatoryLibs) {
             const libraries = this._effectMap.get(lib);
 
             if (libraries) for (const effect of libraries) this.downloadLibrary(effect);
@@ -137,7 +137,9 @@ export class EffectAssetDownloadManager {
 
         if (libraries) {
             for (const library of libraries) {
-                if (!library || library.isLoaded) continue;
+                // A failed library will never load; treating it as pending would keep
+                // the effect permanently unready and re-trigger a download every time.
+                if (!library || library.isLoaded || library.isFailed) continue;
 
                 if (pendingLibraries.indexOf(library) === -1) pendingLibraries.push(library);
             }
@@ -193,28 +195,24 @@ export class EffectAssetDownloadManager {
         return promise;
     }
 
-    private onLibraryLoaded(library: IEffectAssetDownloadLibrary): void {
-        if (!library) return;
+    /** Fires once a library download finishes, whether it succeeded or failed. */
+    private onLibrarySettled(settled: IEffectAssetDownloadLibrary): void {
+        if (!settled) return;
 
-        const loadedEffects: number[] = [];
+        const settledEffects: number[] = [];
 
-        this._onAssetLibraryLoaded?.(library.libraryName);
-        this._structure.registerAnimations(library.animations);
+        if (settled.isLoaded) {
+            this._onAssetLibraryLoaded?.(settled.libraryName);
+            this._structure.registerAnimations(settled.animations);
+        }
 
         for (const [id, libraries] of this._incompleteEffects.entries()) {
-            let isReady = true;
+            // Wake listeners once nothing is still in flight. A failed library is
+            // settled, not pending, so the avatar renders without that effect
+            // instead of holding its listener forever.
+            if (libraries.some(library => library && !library.isLoaded && !library.isFailed)) continue;
 
-            for (const library of libraries) {
-                if (!library || library.isLoaded) continue;
-
-                isReady = false;
-
-                break;
-            }
-
-            if (!isReady) continue;
-
-            loadedEffects.push(id);
+            settledEffects.push(id);
 
             const listeners = this._effectListeners.get(id);
 
@@ -225,8 +223,7 @@ export class EffectAssetDownloadManager {
             this._effectListeners.delete(id);
         }
 
-        for (const id of loadedEffects) this._incompleteEffects.delete(id);
-
+        for (const id of settledEffects) this._incompleteEffects.delete(id);
     }
 
     public get isReady(): boolean {

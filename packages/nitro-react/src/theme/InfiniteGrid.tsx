@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import { ScrollbarVertical } from './ScrollbarVertical';
+import { cn } from './utils';
 
 export const InfiniteGrid = <T,>(props: {
     items: T[];
@@ -17,6 +18,7 @@ export const InfiniteGrid = <T,>(props: {
     horizontalGap?: number;
     verticalGap?: number;
     overrideColumnCount?: number;
+    className?: string;
     itemRender: (item: T, index?: number) => ReactElement;
     getKey: (item: T) => Key;
 }) => {
@@ -27,6 +29,7 @@ export const InfiniteGrid = <T,>(props: {
         horizontalGap = 4,
         verticalGap = 4,
         overrideColumnCount = 0,
+        className,
         itemRender,
         getKey,
     } = props;
@@ -83,7 +86,12 @@ export const InfiniteGrid = <T,>(props: {
     );
 
     return (
-        <div className="flex size-full min-h-0 min-w-0 p-1 overflow-hidden">
+        <div
+            className={cn(
+                'flex size-full min-h-0 min-w-0 overflow-hidden p-1',
+                className,
+            )}
+        >
             <div
                 ref={elementRef}
                 className="min-h-0 min-w-0 flex-1 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden"

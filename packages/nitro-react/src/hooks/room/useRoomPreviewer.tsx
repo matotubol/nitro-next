@@ -380,6 +380,16 @@ export const useRoomPreviewer = (
             DEFAULT_PREVIEW_LANDSCAPE_TYPE,
         );
 
+    /**
+     * `RoomPreviewer.updateRoomWallsAndFloorVisibility`: the inventory hides the
+     * walls for a floor item so the tile the furni stands on fills the 170x130
+     * widget, and shows them again for anything mounted on or painted onto them.
+     */
+    const updateRoomPreviewPlaneVisibility = (
+        wallVisible: boolean,
+        floorVisible: boolean = true,
+    ) => roomRef.current?.updateRoomPlaneVisibilities(wallVisible, floorVisible) ?? false;
+
     const validatePreviewSize = (point: PointData) => {
         const room = roomRef.current;
 
@@ -692,6 +702,9 @@ export const useRoomPreviewer = (
             }
 
             if (!isCanvasInitialized) {
+                // the canvas paints an opaque black sprite behind the room by default;
+                // a preview sits over the UI, so it has to come off
+                previewCanvas.setBackground(false);
                 previewCanvas.setMask(true);
                 previewCanvas.setScale(1);
                 previewCanvas.geometry.adjustLocation(PREVIEW_OBJECT_LOCATION, PREVIEW_CAMERA_DISTANCE);
@@ -773,6 +786,7 @@ export const useRoomPreviewer = (
         changePreviewObjectState,
         setAddViewOffset,
         updateRoomPreviewPlaneTypes,
-        resetRoomPreviewPlaneTypes
+        resetRoomPreviewPlaneTypes,
+        updateRoomPreviewPlaneVisibility
     };
 };

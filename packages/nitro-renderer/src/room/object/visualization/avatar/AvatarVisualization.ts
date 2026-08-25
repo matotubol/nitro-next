@@ -229,7 +229,12 @@ export class AvatarVisualization
                 this._updatesUntilFrameUpdate--;
             }
 
-            if (!(this._updatesUntilFrameUpdate <= 0 || (shouldUpdateFrame && (didScaleUpdate || modelUpdated || otherUpdate)))) return;
+            // A model change rebuilds the figure in the frame it arrives, not on
+            // the next animation tick: `updateObject` above has already moved the
+            // avatar to the seat's height, so deferring the pose leaves it standing
+            // in mid-air until the ~41ms clock comes round. Only the *animation*
+            // half of this belongs behind `shouldUpdateFrame`.
+            if (!(this._updatesUntilFrameUpdate <= 0 || didScaleUpdate || modelUpdated || otherUpdate)) return;
 
             this._avatarImage.updateAnimationByFrames(1);
 

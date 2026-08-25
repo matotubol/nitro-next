@@ -3,6 +3,8 @@ import { createStore } from "zustand";
 
 import type { RoomCameraSlice } from "./RoomCameraSlice";
 import { createRoomCameraSlice, RoomCameraSliceInitialState } from "./RoomCameraSlice";
+import type { RoomDecorationSlice } from "./RoomDecorationSlice";
+import { createRoomDecorationSlice, RoomDecorationSliceInitialState } from "./RoomDecorationSlice";
 import type { RoomMouseSlice } from "./RoomMouseSlice";
 import { createRoomMouseSlice, RoomMouseSliceInitialState } from "./RoomMouseSlice";
 import type { RoomSelectedObjectSlice } from "./RoomSelectedObjectSlice";
@@ -26,7 +28,7 @@ type Actions = {
     setLandingViewVisible: (landingViewVisible: boolean) => void;
 }
 
-export type RoomStore = State & Actions & RoomMouseSlice & RoomSessionSlice & RoomCameraSlice & RoomSelectedObjectSlice & RoomStackingHeightMapSlice & RoomUsersSlice;
+export type RoomStore = State & Actions & RoomMouseSlice & RoomSessionSlice & RoomCameraSlice & RoomSelectedObjectSlice & RoomStackingHeightMapSlice & RoomUsersSlice & RoomDecorationSlice;
 
 export const createRoomStore = () => createStore<RoomStore>()((set, get, store) => ({
     room: undefined,
@@ -44,6 +46,7 @@ export const createRoomStore = () => createStore<RoomStore>()((set, get, store) 
             ...RoomSelectedObjectSliceInitialState,
             ...RoomStackingHeightMapSliceInitialState,
             ...RoomUsersSliceInitialState,
+            ...RoomDecorationSliceInitialState,
             room
         };
     }),
@@ -54,5 +57,6 @@ export const createRoomStore = () => createStore<RoomStore>()((set, get, store) 
     ...createRoomCameraSlice(set, get, store),
     ...createRoomSelectedObjectSlice(set, get, store),
     ...createRoomStackingHeightMapSlice(set, get, store),
-    ...createRoomUsersSlice(set, get, store)
+    ...createRoomUsersSlice(set, get, store),
+    ...createRoomDecorationSlice(set, get, store)
 }));

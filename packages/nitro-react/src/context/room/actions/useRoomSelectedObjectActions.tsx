@@ -8,5 +8,6 @@ export const useRoomSelectedObjectActions = () => useRoomContext(useShallow(x =>
     setSelectedObjectCategory: x.setSelectedObjectCategory,
     setSelectedObject: x.setSelectedObject,
     setPlacedObject: x.setPlacedObject,
-    setObjectPlacementSource: x.setObjectPlacementSource
+    setObjectPlacementSource: x.setObjectPlacementSource,
+    setRepeatedPlacement: x.setRepeatedPlacement
 })));

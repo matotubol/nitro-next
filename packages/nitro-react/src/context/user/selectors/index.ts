@@ -13,4 +13,5 @@ export * from './useOwnUserFigure';
 export * from './useOwnUserGender';
 export * from './useOwnUserId';
 export * from './useOwnUserLook';
+export * from './useOwnUserName';
 export * from './useWallet';

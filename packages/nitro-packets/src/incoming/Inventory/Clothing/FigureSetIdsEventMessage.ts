@@ -1,23 +1,35 @@
 import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
-// TODO(FigureSetIds: ImmutableArray<int>): Unknown type 'ImmutableArray<int>'. Add override mapping.
-// TODO(BoundFurnitureNames: ImmutableArray<string>): Unknown type 'ImmutableArray<string>'. Add override mapping.
-
 export type FigureSetIdsEventMessageType = {
-  figureSetIds: any;
-  boundFurnitureNames: any;
+    figureSetIds: number[];
+    boundFurnitureNames: string[];
 };
 
-export class FigureSetIdsEventMessage implements IIncomingPacket<FigureSetIdsEventMessageType>
-{
-  public parse(wrapper: IMessageDataWrapper): FigureSetIdsEventMessageType
-  {
+const MAX_FIGURE_SET_IDS_PER_PACKET = 10_000;
+const MAX_BOUND_FURNITURE_NAMES_PER_PACKET = 10_000;
 
-    const packet: FigureSetIdsEventMessageType = {
-      figureSetIds: undefined as any, // Unknown type 'ImmutableArray<int>'. Add override mapping.
-      boundFurnitureNames: undefined as any, // Unknown type 'ImmutableArray<string>'. Add override mapping.
-    };
+export class FigureSetIdsEventMessage implements IIncomingPacket<FigureSetIdsEventMessageType> {
+    public parse(wrapper: IMessageDataWrapper): FigureSetIdsEventMessageType {
+        const figureSetCount = Math.max(0, wrapper.readInt());
+        const figureSetIds: number[] = [];
 
-    return packet;
-  }
+        for (let index = 0; index < figureSetCount; index++) {
+            const figureSetId = wrapper.readInt();
+
+            if (figureSetIds.length < MAX_FIGURE_SET_IDS_PER_PACKET)
+                figureSetIds.push(figureSetId);
+        }
+
+        const boundFurnitureCount = Math.max(0, wrapper.readInt());
+        const boundFurnitureNames: string[] = [];
+
+        for (let index = 0; index < boundFurnitureCount; index++) {
+            const boundFurnitureName = wrapper.readString();
+
+            if (boundFurnitureNames.length < MAX_BOUND_FURNITURE_NAMES_PER_PACKET)
+                boundFurnitureNames.push(boundFurnitureName);
+        }
+
+        return { figureSetIds, boundFurnitureNames };
+    }
 }

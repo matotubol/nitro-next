@@ -4,12 +4,13 @@ import { FloorHeightMapMessage, HeightMapMessage, HeightMapUpdateMessage, RoomEn
 import { LegacyWallGeometry, RoomPlaneParser, RoomRotatingEffect, RoomShakingEffect } from "@nitrodevco/nitro-renderer";
 import { useRef } from "react";
 
-import { useRoomSelector, useRoomStackingHeightMapActions } from "#base/context";
+import { useRoomDecorationActions, useRoomSelector, useRoomStackingHeightMapActions } from "#base/context";
 import { useMessageListener } from "#base/hooks";
 
 export const useRoomMappingHandler = () => {
     const room = useRoomSelector();
     const { setHeightMap, setHeightMapUpdates } = useRoomStackingHeightMapActions();
+    const { setRoomProperty } = useRoomDecorationActions();
     const entryTile = useRef<{ x: number, y: number, dir: number } | undefined>(undefined);
 
     const decodeTileHeight = (height: number) => ((height < 0) ? -1 : ((height & 16383) / 0x0100));
@@ -240,6 +241,11 @@ export const useRoomMappingHandler = () => {
     });
 
     useMessageListener(RoomPropertyMessage, data => {
+        // recorded before the room guard: these arrive during entry and would otherwise
+        // be dropped whenever they land ahead of the room, leaving nothing for anything
+        // outside the room to read
+        setRoomProperty(data.key, data.value);
+
         if (!room) return;
 
         room.updateRoomPlaneType((data.key === "floor") ? data.value : undefined, (data.key === "wallpaper") ? data.value : undefined, (data.key === "landscape") ? data.value : undefined);

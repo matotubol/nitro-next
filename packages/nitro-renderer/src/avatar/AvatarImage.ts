@@ -91,6 +91,56 @@ export class AvatarImage implements IAvatarImage, IAvatarEffectListener {
         this._image = undefined;
     }
 
+    /**
+     * Swaps in a new figure without throwing away the whole part cache. Only the body
+     * parts whose figure parts actually changed are evicted, so a recolour repaints one
+     * part instead of recompositing the avatar. Returns false when nothing changed.
+     */
+    public updateFigure(figure: IAvatarFigureContainer | string): boolean {
+        if (this._disposed) return false;
+
+        const next = typeof figure === 'string' ? new AvatarFigureContainer(figure) : figure;
+        const current = this._figure;
+
+        if (current && current.getFigureString() === next.getFigureString()) return false;
+
+        const changed = new Set<AvatarFigurePartType>();
+        const partTypes = new Set<AvatarFigurePartType>([...(current?.getPartTypeIds() ?? []), ...next.getPartTypeIds()]);
+
+        for (const partType of partTypes) {
+            if (!current || current.getPartSetId(partType) !== next.getPartSetId(partType)) {
+                changed.add(partType);
+
+                continue;
+            }
+
+            const before = current.getPartColorIds(partType);
+            const after = next.getPartColorIds(partType);
+
+            if (before.length !== after.length || before.some((id, index) => id !== after[index])) changed.add(partType);
+        }
+
+        this._figure = next;
+
+        // The full-image cache is keyed off the figure, so none of it survives.
+        if (this._fullImageCache) {
+            for (const image of this._fullImageCache.values()) TexturePool.releaseTexture(image);
+
+            this._fullImageCache.clear();
+        }
+
+        const action = this._mainAction ?? this._defaultAction;
+        const geometryType = action?.definition?.geometryType ?? AvatarGeometryType.Vertical;
+        const affected = this._structure.getBodyPartsForFigureParts(changed, AvatarSetType.Full, geometryType, action, this);
+
+        this._cache?.invalidateBodyParts(affected ?? undefined);
+
+        this._changes = true;
+        this._isCachedImage = false;
+
+        return true;
+    }
+
     public dispose(): void {
         if (this._disposed) return;
 

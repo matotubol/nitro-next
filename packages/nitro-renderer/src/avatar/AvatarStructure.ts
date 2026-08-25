@@ -219,6 +219,32 @@ export class AvatarStructure implements IAvatarStructure {
         return this._geometry?.getBodyPartsAtAngle(setType, AvatarDirectionAngle.DIRECTION_TO_ANGLE[direction], geometryType) ?? [];
     }
 
+    /**
+     * Body parts whose geometry consumes any of the given figure part types, checked
+     * across every direction so the answer is safe to cache against. Returns undefined
+     * when it cannot be determined, meaning callers must invalidate everything.
+     */
+    public getBodyPartsForFigureParts(partTypes: Set<AvatarFigurePartType>, setType: AvatarSetType, geometryType: AvatarGeometryType, activeAction: IActiveActionData, avatar: IAvatarImage): AvatarBodyPartType[] | undefined {
+        if (!this._geometry || !activeAction?.definition || !partTypes.size) return undefined;
+
+        const activeParts = this._partSetsData.getActiveParts(activeAction.definition);
+        const affected = new Set<AvatarBodyPartType>();
+
+        for (const bodyPartId of this.getBodyPartsUnordered(setType)) {
+            for (let direction = 0; direction < 8; direction++) {
+                const required = this._geometry.getParts(geometryType, bodyPartId, direction, activeParts, avatar);
+
+                if (!required?.some(partType => partTypes.has(partType as AvatarFigurePartType))) continue;
+
+                affected.add(bodyPartId);
+
+                break;
+            }
+        }
+
+        return Array.from(affected);
+    }
+
     public getFrameBodyPartOffset(k: IActiveActionData, direction: number, frame: number, bodyPartId: AvatarBodyPartType): Point {
         if (k.definition) return this._animationData.getAction(k.definition)?.getFrameBodyPartOffset(direction, frame, bodyPartId) ?? AnimationAction.DEFAULT_OFFSET;
 

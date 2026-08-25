@@ -201,6 +201,32 @@ export class AvatarImageCache {
         return bodyPartContainer;
     }
 
+    /**
+     * Drops cached renders for the given body parts, keeping every other part warm.
+     * Passing nothing clears the whole cache, which is the old behaviour.
+     */
+    public invalidateBodyParts(bodyParts?: AvatarBodyPartType[]): void {
+        if (this._disposed || !this._cache) return;
+
+        if (!bodyParts) {
+            for (const cache of this._cache.values()) cache.dispose();
+
+            this._cache.clear();
+
+            return;
+        }
+
+        for (const bodyPart of bodyParts) {
+            const cache = this._cache.get(bodyPart);
+
+            if (!cache) continue;
+
+            cache.dispose();
+
+            this._cache.delete(bodyPart);
+        }
+    }
+
     public getBodyPartCache(k: AvatarBodyPartType): AvatarImageBodyPartCache {
         let existing = this._cache.get(k);
 
@@ -280,6 +306,10 @@ export class AvatarImageCache {
                 asset = this._assets.getAsset(assetName);
             }
 
+            // A miss here is permanent, not transient: AvatarRenderManager only builds a
+            // real AvatarImage once every library for the figure has settled, so the
+            // fallback chain above has already seen everything it will ever see. Keep the
+            // body part cacheable — clearing the flag would re-render it every frame.
             if (!asset) continue;
 
             const texture = asset.texture;
@@ -386,9 +416,13 @@ export class AvatarImageCache {
     }
 
     private createUnionImage(images: ImageData[], isFlipped: boolean): ImageData {
-        const bounds = new Rectangle();
+        let bounds: Rectangle | undefined;
 
-        for (const image of images) bounds.enlarge(image.offsetRect);
+        // Seed with the first rect: enlarging an empty (0,0,0,0) rectangle
+        // would drag the origin into the union and pad every body part image.
+        for (const image of images) bounds = bounds ? bounds.enlarge(image.offsetRect) : image.offsetRect.clone();
+
+        if (!bounds) bounds = new Rectangle();
 
         const point = new Point(-(bounds.x), -(bounds.y));
         const container = new Container();

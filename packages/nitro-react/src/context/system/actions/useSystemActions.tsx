@@ -3,6 +3,7 @@ import { useShallow } from "zustand/shallow";
 import { useSystemContext } from "../useSystemContext";
 
 export const useSystemActions = () => useSystemContext(useShallow(x => ({
+    setIsInRoom: x.setIsInRoom,
     toggleWindow: x.toggleWindow,
     showWindow: x.showWindow,
     hideWindow: x.hideWindow,

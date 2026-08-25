@@ -3,4 +3,5 @@ export interface IAvatarAssetDownloadLibrary {
     downloadAssetAsync(): Promise<void>;
     readonly libraryName: string;
     readonly isLoaded: boolean;
+    readonly isFailed: boolean;
 }

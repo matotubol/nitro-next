@@ -1,20 +1,31 @@
-import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
+import type { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
-// TODO(Data: object?): Unknown type 'object'. Add override mapping.
+export interface IPopularRoomTag {
+    tag: string;
+    userCount: number;
+}
 
 export type PopularRoomTagsResultMessageType = {
-  data: any;
+    tags: IPopularRoomTag[];
 };
 
-export class PopularRoomTagsResultMessage implements IIncomingPacket<PopularRoomTagsResultMessageType>
-{
-  public parse(wrapper: IMessageDataWrapper): PopularRoomTagsResultMessageType
-  {
+export class PopularRoomTagsResultMessage implements IIncomingPacket<PopularRoomTagsResultMessageType> {
+    public parse(wrapper: IMessageDataWrapper): PopularRoomTagsResultMessageType {
+        const tags: IPopularRoomTag[] = [];
 
-    const packet: PopularRoomTagsResultMessageType = {
-      data: undefined as any, // Unknown type 'object'. Add override mapping.
-    };
+        if (!wrapper.bytesAvailable) return { tags };
 
-    return packet;
-  }
+        let count = wrapper.readInt();
+
+        while (count > 0) {
+            tags.push({
+                tag: wrapper.readString(),
+                userCount: wrapper.readInt()
+            });
+
+            count--;
+        }
+
+        return { tags };
+    }
 }

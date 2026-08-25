@@ -100,7 +100,11 @@ export class TextureUtils {
         canvas: HTMLCanvasElement,
         clear: boolean = true,
     ): Texture {
-        const target = getCanvasTexture(canvas);
+        // `transparent` defaults to false, which makes the WebGPU adaptor composite the
+        // canvas with alphaMode 'opaque' - every cleared pixel then reads back as black
+        // instead of showing the page through it. Preview canvases are drawn over UI, so
+        // they have to opt in. Cached per canvas, so this only applies on first render.
+        const target = getCanvasTexture(canvas, { transparent: true });
         const width = Math.max(1, canvas.width);
         const height = Math.max(1, canvas.height);
 

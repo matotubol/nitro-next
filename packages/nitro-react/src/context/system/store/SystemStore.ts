@@ -8,6 +8,7 @@ type State = {
     floorItems: Record<number, IFurnitureData>;
     wallItems: Record<number, IFurnitureData>;
     productData: Record<string, IProductData>;
+    isInRoom: boolean;
     visibleWindows: string[];
     topZIndex: number;
     topId: string | undefined;
@@ -23,6 +24,7 @@ type Actions = {
     parseFloorItems: (data: IFurnitureType[]) => void;
     parseWallItems: (data: IFurnitureType[]) => void;
     parseProductData: (data: IProductData[]) => void;
+    setIsInRoom: (isInRoom: boolean) => void;
     toggleWindow: (name: string) => void;
     showWindow: (name: string) => void;
     hideWindow: (name: string) => void;
@@ -38,6 +40,7 @@ const initialState: State = {
     floorItems: {},
     wallItems: {},
     productData: {},
+    isInRoom: false,
     visibleWindows: [],
     topZIndex: BASE_FRAME_Z_INDEX,
     topId: undefined,
@@ -49,6 +52,7 @@ export type SystemStore = State & Actions;
 export const createSystemStore = () => createStore<SystemStore>()((set, get, store) => ({
     ...initialState,
     setConfig: (config: Record<string, unknown>) => set({ config }),
+    setIsInRoom: (isInRoom: boolean) => set({ isInRoom }),
     setConfigValue: <T = unknown>(key: string, value: T) =>
         set((state) => {
             return { config: { ...state.config, [key]: value } };

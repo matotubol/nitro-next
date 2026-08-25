@@ -1,89 +1,73 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { GetInventoryTypeFilters, INVENTORY_MAIN_FILTERS, useInventoryActions, useInventorySelectors } from "#base/context";
+import { useInventoryFurniFilter, useInventoryFurniFilterLabels } from "#base/hooks";
+import { Border, InfiniteGrid } from "#base/theme";
 
-import { useTranslation } from "#base/context";
-import { Border, Button, Dropmenu, ScrollableItemGridVertical, ScrollbarVertical } from "#base/theme";
+import { InventoryFilterSelect } from "./InventoryFilterSelect";
+import { InventoryFurniItemView } from "./InventoryFurniItemView";
+import { InventoryFurniPreviewView } from "./InventoryFurniPreviewView";
 
-const PAGE_SIZE = 24;
-const MAX_ITEMS = 200;
-const COLUMNS = 4;
-const ROW_SIZE = 40;
-const ROW_GAP = 4;
+// `inventory.xml`: the window is a fixed 490x342, `item_grid` is 284 wide with
+// `spacing = 2`, and `preview_container` sits at x=290 with width 180. Six 42px
+// tiles at that spacing come to 6*42 + 5*2 = 262, leaving 22px of the 284 for
+// the scrollbar - so the grid must not add padding of its own.
+const ITEM_SIZE = 42;
+const ITEM_GAP = 2;
+const ITEM_COLUMNS = 6;
 
-export const InventoryFurniView = (props: { scrollVariant: string }) => {
-    const [itemCount, setItemCount] = useState(PAGE_SIZE);
-    const t = useTranslation();
-
-    const viewportRef = useRef<HTMLDivElement>(null);
-    const contentRef = useRef<HTMLDivElement>(null);
-
-    const loadMore = useCallback(() => {
-        setItemCount((count) => Math.min(count + PAGE_SIZE, MAX_ITEMS));
-    }, []);
-
-    const rowCount = Math.ceil(itemCount / COLUMNS);
-
-    const rowVirtualizer = useVirtualizer({
-        count: rowCount,
-        getScrollElement: () => viewportRef.current,
-        estimateSize: () => ROW_SIZE,
-        gap: ROW_GAP,
-        overscan: 4,
-    });
-
-    const virtualRows = rowVirtualizer.getVirtualItems();
-
-    useEffect(() => {
-        const lastRow = virtualRows[virtualRows.length - 1];
-        if (!lastRow) return;
-        if (lastRow.index >= rowCount - 1 && itemCount < MAX_ITEMS) loadMore();
-    }, [virtualRows, rowCount, itemCount, loadMore]);
+export const InventoryFurniView = () => {
+    const { selectedGroupId, mainFilter, typeFilter, searchValue } = useInventorySelectors();
+    const furnitureGroups = useInventoryFurniFilter();
+    const { getMainFilterLabel, getTypeFilterLabel } = useInventoryFurniFilterLabels();
+    const { selectFurnitureGroup, setMainFilter, setTypeFilter, setSearchValue } = useInventoryActions();
 
     return (
         <div className="flex flex-col gap-1 h-full">
             <Border variant="3" tintColor="#cacaca" className="flex gap-1.5 p-1 h-6.25 items-center">
                 <Border variant="0" className="w-34.75 h-5">
-                    <input type="text w-full overflow-hidden px-2"></input>
-                </Border>
-                <Dropmenu variant="100" className="w-29.75 h-5.25" />
-                <Dropmenu variant="100" className="w-29.75 h-5.25" />
-            </Border>
-            <div className="flex h-full gap-1 overflow-hidden">
-                <div className="flex size-full min-h-0 min-w-0 gap-0.5">
-                    <div
-                        ref={viewportRef}
-                        className="min-h-0 min-w-0 flex-1 overflow-y-auto p-1 scrollbar-none [&::-webkit-scrollbar]:hidden"
-                    >
-                        <div ref={contentRef} className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
-                            {virtualRows.map((virtualRow) => {
-                                const rowStart = virtualRow.index * COLUMNS;
-                                const rowItemCount = Math.min(COLUMNS, itemCount - rowStart);
-
-                                return (
-                                    <div
-                                        key={virtualRow.key}
-                                        className="absolute top-0 left-0 grid w-full grid-cols-4 gap-1"
-                                        style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}
-                                    >
-                                        {Array.from({ length: rowItemCount }, (_, i) => (
-                                            <ScrollableItemGridVertical key={rowStart + i} variant="3" />
-                                        ))}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    <ScrollbarVertical
-                        viewportRef={viewportRef}
-                        contentRef={contentRef}
-                        variant={props.scrollVariant}
+                    <input
+                        type="text"
+                        className="size-full overflow-hidden bg-transparent px-2 outline-none"
+                        value={searchValue}
+                        onChange={event => setSearchValue(event.target.value)}
                     />
-                </div>
+                </Border>
+                <InventoryFilterSelect
+                    value={mainFilter}
+                    options={INVENTORY_MAIN_FILTERS}
+                    getLabel={getMainFilterLabel}
+                    onChange={setMainFilter}
+                    className="w-29.75 h-5.25"
+                />
+                <InventoryFilterSelect
+                    value={typeFilter}
+                    options={GetInventoryTypeFilters(mainFilter)}
+                    getLabel={getTypeFilterLabel}
+                    onChange={setTypeFilter}
+                    className="w-29.75 h-5.25"
+                />
+            </Border>
+            <div className="flex h-full gap-1.5 overflow-hidden">
+                <InfiniteGrid
+                    className="flex-1 p-0"
+                    items={furnitureGroups}
+                    itemWidth={ITEM_SIZE}
+                    minHeight={ITEM_SIZE}
+                    horizontalGap={ITEM_GAP}
+                    verticalGap={ITEM_GAP}
+                    overrideColumnCount={ITEM_COLUMNS}
+                    getKey={group => group.groupId}
+                    itemRender={group => (
+                        <InventoryFurniItemView
+                            group={group}
+                            isSelected={group.groupId === selectedGroupId}
+                            onSelect={selectFurnitureGroup}
+                        />
+                    )}
+                />
+                {/* `preview_container` is 180 wide and its children stack from the
+                    top - the preview is a fixed 130 tall, not a stretched box */}
                 <div className="flex flex-col w-45 shrink-0">
-                    <div className="flex-1">preview</div>
-                    <div className="flex">
-                        <Button variant="102">{t('inventory.furni.placetoroom')}</Button>
-                    </div>
+                    <InventoryFurniPreviewView />
                 </div>
             </div>
         </div>

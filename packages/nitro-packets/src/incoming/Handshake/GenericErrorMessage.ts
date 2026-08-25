@@ -1,9 +1,14 @@
 import { IIncomingPacket, IMessageDataWrapper } from '@nitrodevco/nitro-api';
 
-// TODO(ErrorCode: RoomGenericErrorType): Unknown type 'RoomGenericErrorType'. Add override mapping.
+/** The room-flow codes the server sends through this today. */
+export enum GenericErrorCode {
+    InvalidPassword = -100002,
+    RoomKicked = 4008,
+    InvalidRoomName = 4010
+}
 
 export type GenericErrorMessageType = {
-  errorCode: any;
+  errorCode: number;
 };
 
 export class GenericErrorMessage implements IIncomingPacket<GenericErrorMessageType>
@@ -12,7 +17,7 @@ export class GenericErrorMessage implements IIncomingPacket<GenericErrorMessageT
   {
 
     const packet: GenericErrorMessageType = {
-      errorCode: undefined as any, // Unknown type 'RoomGenericErrorType'. Add override mapping.
+      errorCode: wrapper.readInt(),
     };
 
     return packet;
